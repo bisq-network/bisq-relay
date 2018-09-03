@@ -143,7 +143,8 @@ class RelayService {
         Message message = messageBuilder.build();
         try {
             FirebaseMessaging firebaseMessaging = FirebaseMessaging.getInstance();
-            return firebaseMessaging.send(message);
+            firebaseMessaging.send(message);
+            return SUCCESS;
         } catch (FirebaseMessagingException e) {
             log.error(e.toString());
             e.printStackTrace();
