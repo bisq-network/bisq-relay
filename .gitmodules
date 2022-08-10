@@ -1,0 +1,4 @@
+[submodule "bisq"]
+	path = bisq
+	url = https://github.com/bisq-network/bisq.git
+	branch = master
