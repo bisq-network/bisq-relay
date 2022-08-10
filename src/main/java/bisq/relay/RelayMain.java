@@ -19,24 +19,24 @@ package bisq.relay;
 
 import bisq.common.app.Log;
 import bisq.common.util.Utilities;
-
+import ch.qos.logback.classic.Level;
 import org.apache.commons.codec.binary.Hex;
-
-import java.io.File;
-
-import java.util.Locale;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ch.qos.logback.classic.Level;
+import java.io.*;
+import java.util.Locale;
+import java.util.function.Supplier;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static spark.Spark.get;
 import static spark.Spark.port;
 
 public class RelayMain {
     private static final Logger log = LoggerFactory.getLogger(RelayMain.class);
-    private static final String VERSION = "0.1.0";
+
+    private static final String VERSION_FILENAME = "version.txt";
+
     private static RelayService relayService;
 
     static {
@@ -45,16 +45,15 @@ public class RelayMain {
     }
 
     /**
-     * @param args      Pass port as program argument if other port than default port 8080 is wanted.
+     * @param args Pass port as program argument if other port than default port 8080 is wanted.
      */
     public static void main(String[] args) {
         final String logPath = System.getProperty("user.home") + File.separator + "provider";
         Log.setup(logPath);
         Log.setLevel(Level.INFO);
-        log.info("Log files under: " + logPath);
-        log.info("RelayVersion.VERSION: " + VERSION);
+        log.info("Log files under: {}", logPath);
+        log.info("Relay Version: {}", relayVersion.get());
         Utilities.printSysInfo();
-
 
         String appleCertPwPath;
         if (args.length > 0)
@@ -99,10 +98,10 @@ public class RelayMain {
             log.info("Incoming relay request from: " + request.userAgent());
             boolean isAndroid = request.queryParams("isAndroid").equalsIgnoreCase("true");
             boolean useSound = request.queryParams("snd").equalsIgnoreCase("true");
-            String token = new String(Hex.decodeHex(request.queryParams("token").toCharArray()), "UTF-8");
-            String encryptedMessage = new String(Hex.decodeHex(request.queryParams("msg").toCharArray()), "UTF-8");
+            String token = new String(Hex.decodeHex(request.queryParams("token").toCharArray()), UTF_8);
+            String encryptedMessage = new String(Hex.decodeHex(request.queryParams("msg").toCharArray()), UTF_8);
             log.info("isAndroid={}\nuseSound={}\napsTokenHex={}\nencryptedMessage={}", isAndroid, useSound, token,
-                encryptedMessage);
+                    encryptedMessage);
             if (isAndroid) {
                 return relayService.sendAndroidMessage(token, encryptedMessage, useSound);
             } else {
@@ -117,9 +116,34 @@ public class RelayMain {
         //noinspection InfiniteLoopStatement
         while (true) {
             try {
+                //noinspection BusyWait
                 Thread.sleep(Long.MAX_VALUE);
             } catch (InterruptedException ignore) {
             }
         }
     }
+
+    private static final Supplier<InputStream> versionFileStream = () -> {
+        var ios = RelayMain.class.getClassLoader().getResourceAsStream(VERSION_FILENAME);
+        if (ios == null) {
+            throw new RuntimeException(VERSION_FILENAME + " not found");
+        } else {
+            return ios;
+        }
+    };
+
+    private static final Supplier<String> relayVersion = () -> {
+        InputStream ios = versionFileStream.get();
+        try (InputStreamReader isr = new InputStreamReader(ios);
+             BufferedReader br = new BufferedReader(isr)) {
+            var version = br.readLine();
+            if (version == null || version.isBlank()) {
+                throw new RuntimeException("Could not find version string in " + VERSION_FILENAME);
+            } else {
+                return version;
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException("Could not load " + VERSION_FILENAME, ex);
+        }
+    };
 }
