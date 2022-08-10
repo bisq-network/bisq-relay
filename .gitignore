@@ -1,0 +1,6 @@
+.gradle
+.idea
+build
+bisq-relay
+bisq-relay.bat
+lib
