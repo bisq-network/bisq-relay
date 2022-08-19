@@ -1,0 +1,38 @@
+# Version Catalogs documentation: https://docs.gradle.org/7.5/userguide/platforms.html
+# Used in the [libraries] and [bundles] sections below using version.ref
+# See https://docs.gradle.org/7.5/userguide/rich_versions.html for keywords (strictly / required / prefer / reject)
+# Convention: mark all versions using 'strictly'. This ensures only one version is allowed in the dependency tree, even
+# when multiple versions are attempted to be brought in as transitive dependencies of other requirements.
+[versions]
+codec-lib = { strictly = '1.13' }
+firebase-lib = { strictly = '6.2.0' }
+guava-lib = { strictly = '30.1.1-jre' }
+guice-lib = { strictly = '5.0.1' }
+junit-jupiter-lib = { strictly = '5.8.2' }
+logback-lib = { strictly = '1.2.6' }
+lombok-lib = { strictly = '1.18.22' }
+pushy-lib = { strictly = '0.13.2' }
+slf4j-lib = { strictly = '1.7.36' }
+shadow-plugin = { strictly = '5.2.0' }
+spark-lib = { strictly = '2.5.2' }
+
+# Referenced in subproject's build.gradle > dependencies block in the form 'implementation libs.guava'
+# Note: keys can contain dash (protobuf-java) but the dash is replaced by dot when referenced
+# in a build.gradle ('implementation libs.protobuf.java')
+[libraries]
+codec = { module = 'commons-codec:commons-codec', version.ref = 'codec-lib' }
+firebase = { module = 'com.google.firebase:firebase-admin', version.ref = 'firebase-lib' }
+guava = { module = 'com.google.guava:guava', version.ref = 'guava-lib' }
+guice = { module = 'com.google.inject:guice', version.ref = 'guice-lib' }
+junit-jupiter = { module = 'org.junit.jupiter:junit-jupiter', version.ref = 'junit-jupiter-lib' }
+logback-core = { module = 'ch.qos.logback:logback-core', version.ref = 'logback-lib' }
+logback-classic = { module = 'ch.qos.logback:logback-classic', version.ref = 'logback-lib' }
+lombok = { module = 'org.projectlombok:lombok', version.ref = 'lombok-lib' }
+pushy = { module = 'com.turo:pushy', version.ref = 'pushy-lib' }
+slf4j-api = { module = 'org.slf4j:slf4j-api', version.ref = 'slf4j-lib' }
+spark-core = { module = 'com.sparkjava:spark-core', version.ref = 'spark-lib' }
+
+[bundles]
+
+[plugins]
+shadow = { id = 'com.github.johnrengelman.shadow', version.ref = 'shadow-plugin' }

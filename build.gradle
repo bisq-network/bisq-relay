@@ -1,0 +1,66 @@
+plugins {
+    id 'application'
+    id 'bisq.post-build'
+    alias(libs.plugins.shadow)
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
+group 'bisq'
+version = file("src/main/resources/version.txt").text.trim()
+
+application {
+    project.mainClassName = 'bisq.relay.RelayMain'
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+}
+
+jar.manifest.attributes(
+        "Implementation-Title": project.name,
+        "Implementation-Version": version
+)
+
+configurations.all {
+    exclude group: 'com.github.bisq-network:bitcoinj'
+    exclude group: 'io.grpc'
+    exclude group: 'org.fxmisc.easybind'
+}
+
+dependencies {
+    implementation 'bisq:common'
+    implementation 'bisq:proto'
+
+    implementation libs.codec
+    implementation libs.firebase
+    implementation libs.pushy
+    implementation libs.spark.core
+
+    implementation libs.logback.core
+    implementation libs.logback.classic
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+    implementation libs.slf4j.api
+
+    testAnnotationProcessor libs.lombok
+    testCompileOnly libs.lombok
+    testImplementation libs.junit.jupiter
+}
+
+clean.doFirst {
+    // Remove the project root level 'bisq-*' scripts and 'lib' dir generated at the end of the assemble task.
+    delete fileTree(dir: projectDir, include: ['bisq-relay', 'bisq-relay.bat']), 'lib'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
