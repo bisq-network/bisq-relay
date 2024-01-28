@@ -2,6 +2,8 @@ plugins {
     id 'application'
     id 'bisq.post-build'
     alias(libs.plugins.shadow)
+    alias(libs.plugins.springDependencyManagement)
+    alias(libs.plugins.springframeworkBoot)
 }
 
 repositories {
@@ -13,12 +15,22 @@ group 'bisq'
 version = file("src/main/resources/version.txt").text.trim()
 
 application {
-    project.mainClassName = 'bisq.relay.RelayMain'
+    project.mainClassName = 'bisq.relay.Main'
+}
+
+bootJar {
+    project.mainClassName = 'bisq.relay.Main'
+}
+
+[test, run, bootRun].each { runTask ->
+    configure(runTask) {
+        systemProperties System.properties
+    }
 }
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
@@ -27,15 +39,18 @@ jar.manifest.attributes(
         "Implementation-Version": version
 )
 
-configurations.all {
+configurations.configureEach {
     exclude group: 'com.github.bisq-network:bitcoinj'
-    exclude group: 'io.grpc'
     exclude group: 'org.fxmisc.easybind'
 }
 
 dependencies {
     implementation 'bisq:common'
     implementation 'bisq:proto'
+
+    implementation libs.spring.boot.dependencies
+    implementation libs.spring.boot.web
+    implementation libs.spring.boot.validation
 
     implementation libs.codec
     implementation libs.firebase
@@ -51,6 +66,7 @@ dependencies {
     testAnnotationProcessor libs.lombok
     testCompileOnly libs.lombok
     testImplementation libs.junit.jupiter
+    testImplementation libs.spring.boot.test
 }
 
 clean.doFirst {
