@@ -12,9 +12,7 @@
 
     <logger name="bisq" level="INFO"/>
 
-    <logger name="org.springframework.web.filter.CommonsRequestLoggingFilter">
-        <!-- Set this to DEBUG to log web requests for troubleshooting/development purposes  -->
-        <level value="INFO" />
-    </logger>
+    <!-- Set this to DEBUG to log web requests for troubleshooting/development purposes  -->
+    <logger name="org.springframework.web.filter.CommonsRequestLoggingFilter" level="INFO"/>
 
 </configuration>

@@ -24,9 +24,9 @@ import com.eatthepath.pushy.apns.util.ApnsPayloadBuilder;
 import com.eatthepath.pushy.apns.util.SimpleApnsPayloadBuilder;
 import com.eatthepath.pushy.apns.util.SimpleApnsPushNotification;
 import com.eatthepath.pushy.apns.util.TokenUtil;
+import jakarta.annotation.Nonnull;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Nonnull;
 import java.time.Instant;
 import java.util.Objects;
 

@@ -39,32 +39,25 @@ jar.manifest.attributes(
         "Implementation-Version": version
 )
 
-configurations.configureEach {
-    exclude group: 'com.github.bisq-network:bitcoinj'
-    exclude group: 'org.fxmisc.easybind'
-}
-
 dependencies {
-    implementation 'bisq:common'
-    implementation 'bisq:proto'
-
     implementation libs.spring.boot.dependencies
     implementation libs.spring.boot.web
     implementation libs.spring.boot.validation
 
-    implementation libs.codec
-    implementation libs.firebase
+    implementation(libs.firebase) {
+        exclude group: 'commons-logging', module: 'commons-logging'
+    }
     implementation libs.pushy
-    implementation libs.spark.core
 
+    implementation libs.slf4j.api
     implementation libs.logback.core
     implementation libs.logback.classic
+
     compileOnly libs.lombok
     annotationProcessor libs.lombok
-    implementation libs.slf4j.api
-
     testAnnotationProcessor libs.lombok
     testCompileOnly libs.lombok
+
     testImplementation libs.junit.jupiter
     testImplementation libs.spring.boot.test
 }

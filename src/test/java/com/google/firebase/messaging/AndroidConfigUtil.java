@@ -18,8 +18,8 @@
 package com.google.firebase.messaging;
 
 import bisq.relay.test.utils.ReflectionUtil;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 import java.util.Objects;
 
 public final class AndroidConfigUtil {

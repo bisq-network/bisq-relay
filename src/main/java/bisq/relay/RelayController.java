@@ -21,6 +21,7 @@ import bisq.relay.exception.BadArgumentsException;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.apns.ApnsPushNotificationController;
 import bisq.relay.notification.fcm.FcmPushNotificationController;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
@@ -31,7 +32,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;

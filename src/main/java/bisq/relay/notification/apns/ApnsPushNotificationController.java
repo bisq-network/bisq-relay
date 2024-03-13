@@ -17,9 +17,11 @@
 
 package bisq.relay.notification.apns;
 
-import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationController;
+import bisq.relay.notification.PushNotificationMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,8 +32,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
 import java.util.concurrent.CompletableFuture;
 
 @RestController

@@ -21,9 +21,9 @@ import bisq.relay.notification.PushNotificationMessage;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import jakarta.annotation.Nonnull;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Nonnull;
 import java.time.Duration;
 import java.util.Objects;
 

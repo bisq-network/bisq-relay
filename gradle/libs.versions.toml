@@ -4,24 +4,21 @@
 # Convention: mark all versions using 'strictly'. This ensures only one version is allowed in the dependency tree, even
 # when multiple versions are attempted to be brought in as transitive dependencies of other requirements.
 [versions]
-codec-lib = { strictly = '1.15' }
-firebase-lib = { strictly = '9.1.0' }
-junit-jupiter-lib = { strictly = '5.9.1' }
-logback-lib = { strictly = '1.2.6' }
-lombok-lib = { strictly = '1.18.24' }
-pushy-lib = { strictly = '0.15.1' }
-slf4j-lib = { strictly = '1.7.36' }
-spark-lib = { strictly = '2.9.4' }
-spring-boot-lib = { strictly = '2.7.5' }
+firebase-lib = { strictly = '9.2.0' }
+junit-jupiter-lib = { strictly = '5.10.2' }
+logback-lib = { strictly = '1.5.3' }
+lombok-lib = { strictly = '1.18.30' }
+pushy-lib = { strictly = '0.15.4' }
+slf4j-lib = { strictly = '2.0.12' }
+spring-boot-lib = { strictly = '3.2.3' }
 shadow-plugin = { strictly = '7.1.2' }
-spring-plugin = { strictly = '1.0.11.RELEASE' }
-springframework-plugin = { strictly = '2.7.5' }
+spring-plugin = { strictly = '1.1.4' }
+springframework-plugin = { strictly = '3.2.3' }
 
 # Referenced in subproject's build.gradle > dependencies block in the form 'implementation libs.guava'
 # Note: keys can contain dash (protobuf-java) but the dash is replaced by dot when referenced
 # in a build.gradle ('implementation libs.protobuf.java')
 [libraries]
-codec = { module = 'commons-codec:commons-codec', version.ref = 'codec-lib' }
 firebase = { module = 'com.google.firebase:firebase-admin', version.ref = 'firebase-lib' }
 junit-jupiter = { module = 'org.junit.jupiter:junit-jupiter', version.ref = 'junit-jupiter-lib' }
 logback-core = { module = 'ch.qos.logback:logback-core', version.ref = 'logback-lib' }
@@ -29,7 +26,6 @@ logback-classic = { module = 'ch.qos.logback:logback-classic', version.ref = 'lo
 lombok = { module = 'org.projectlombok:lombok', version.ref = 'lombok-lib' }
 pushy = { module = 'com.eatthepath:pushy', version.ref = 'pushy-lib' }
 slf4j-api = { module = 'org.slf4j:slf4j-api', version.ref = 'slf4j-lib' }
-spark-core = { module = 'com.sparkjava:spark-core', version.ref = 'spark-lib' }
 spring-boot-dependencies = { module = 'org.springframework.boot:spring-boot-dependencies', version.ref = 'spring-boot-lib' }
 spring-boot-web = { module = 'org.springframework.boot:spring-boot-starter-web', version.ref = 'spring-boot-lib' }
 spring-boot-validation = { module = 'org.springframework.boot:spring-boot-starter-validation', version.ref = 'spring-boot-lib' }

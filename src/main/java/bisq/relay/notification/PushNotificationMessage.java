@@ -18,8 +18,7 @@
 package bisq.relay.notification;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PushNotificationMessage(
