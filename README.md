@@ -38,12 +38,15 @@ $ ./gradlew clean build
 ### Requirements
 
 Prior to running the service, several files need to be obtained in order to be able to
-send push notifications to APNs and FCM.
+send push notifications to APNs and FCM, and ultimately to the corresponding mobile app.
 
 #### FCM
 An appropriate `fcmServiceAccountKey.json` file needs to be copied to the root folder.
 Download it from the [Firebase console](https://console.firebase.google.com/)
 under `project settings` > `service accounts`.
+
+> Note, the Android app needs to be built with a corresponding `google-services.json` file
+> for the same Firebase project.
 
 #### APNs
 An appropriate `apnsCertificate.production.p12` file needs to be copied to the root folder, along with the
