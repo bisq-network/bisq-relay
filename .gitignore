@@ -1,6 +1,9 @@
 .gradle
 .idea
 build
+lib
 bisq-relay
 bisq-relay.bat
-lib
+/*.json
+/*.txt
+/*.p12
