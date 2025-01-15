@@ -22,6 +22,8 @@ import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -29,6 +31,7 @@ import java.util.Objects;
 
 @Component
 public class FcmPushNotificationBuilder {
+    private static final Logger LOG = LoggerFactory.getLogger(FcmPushNotificationBuilder.class);
     // The maximum time-to-live duration of an Android message is 4 weeks
     public static final long TTL_DAYS = 28;
 
@@ -38,10 +41,16 @@ public class FcmPushNotificationBuilder {
         Objects.requireNonNull(deviceToken);
         Objects.requireNonNull(pushNotificationMessage);
 
-        return getMessageBuilder(pushNotificationMessage)
-                .setToken(deviceToken)
-                .putData("encrypted", pushNotificationMessage.encrypted())
-                .build();
+        Message.Builder messageBuilder = getMessageBuilder(pushNotificationMessage)
+                .setToken(deviceToken);
+
+        if (pushNotificationMessage.encrypted() != null) {
+            messageBuilder.putData("encrypted", pushNotificationMessage.encrypted());
+        } else {
+            LOG.warn("PushNotificationMessage is missing encrypted content: {}", pushNotificationMessage);
+        }
+
+        return messageBuilder.build();
     }
 
     private Message.Builder getMessageBuilder(@Nonnull final PushNotificationMessage pushNotificationMessage) {

@@ -25,6 +25,8 @@ import com.eatthepath.pushy.apns.util.SimpleApnsPayloadBuilder;
 import com.eatthepath.pushy.apns.util.SimpleApnsPushNotification;
 import com.eatthepath.pushy.apns.util.TokenUtil;
 import jakarta.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -34,6 +36,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 @Component
 public class ApnsPushNotificationBuilder {
+    private static final Logger LOG = LoggerFactory.getLogger(ApnsPushNotificationBuilder.class);
     // Use the equivalent maximum time-to-live duration of an Android message (4 weeks)
     public static final long INVALIDATION_TIME_PERIOD_DAYS = 28;
 
@@ -70,6 +73,8 @@ public class ApnsPushNotificationBuilder {
 
         if (pushNotificationMessage.encrypted() != null) {
             payloadBuilder.addCustomProperty("encrypted", pushNotificationMessage.encrypted());
+        } else {
+            LOG.warn("PushNotificationMessage is missing encrypted content: {}", pushNotificationMessage);
         }
 
         return payloadBuilder.build();
