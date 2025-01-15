@@ -35,8 +35,9 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
@@ -144,9 +145,7 @@ class FcmPushNotificationSenderTest {
                 urgent ? AndroidConfig.Priority.HIGH.name().toLowerCase() : AndroidConfig.Priority.NORMAL.name().toLowerCase());
 
         Notification notification = MessageUtil.getMessageNotification(sentPushNotification);
-        assertThat(NotificationUtil.getTitle(notification)).isEqualTo("You have received a Bisq notification");
-        assertThat(NotificationUtil.getBody(notification)).isEqualTo("Click to decrypt");
-        assertThat(NotificationUtil.getImage(notification)).isNull();
+        assertThat(notification).isNull();
     }
 
     private void thenThePushNotificationWasAccepted() {

@@ -20,7 +20,6 @@ package bisq.relay.notification.fcm;
 import bisq.relay.notification.PushNotificationMessage;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,18 +57,8 @@ public class FcmPushNotificationBuilder {
 
         AndroidConfig androidConfig = getAndroidConfig(pushNotificationMessage);
 
-        // TODO send data-only messages (i.e. remove setNotification).
-        //  This will allow the app to process/decrypt background messages as they are received,
-        //  rather than only when clicked on.
-        //  Wait until an updated version of the app has been released that supports data-only messages
-        //  and installed by a majority of users.
-        //  Ref: https://firebase.google.com/docs/cloud-messaging/android/receive
         return Message.builder()
-                .setAndroidConfig(androidConfig)
-                .setNotification(Notification.builder()
-                        .setTitle("You have received a Bisq notification")
-                        .setBody("Click to decrypt")
-                        .build());
+                .setAndroidConfig(androidConfig);
     }
 
     private AndroidConfig getAndroidConfig(@Nonnull final PushNotificationMessage pushNotificationMessage) {
