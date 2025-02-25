@@ -34,12 +34,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.concurrent.CompletableFuture;
 
+import static bisq.relay.util.MaskingUtil.maskSensitive;
+
 @RestController
 public class ApnsPushNotificationController extends PushNotificationController {
     private static final Logger LOG = LoggerFactory.getLogger(ApnsPushNotificationController.class);
 
     @Autowired
-    public ApnsPushNotificationController(final ApnsPushNotificationSender apnsSender, final ObjectMapper objectMapper) {
+    public ApnsPushNotificationController(
+            final ApnsPushNotificationSender apnsSender,
+            final ObjectMapper objectMapper) {
         super(apnsSender, objectMapper);
     }
 
@@ -50,7 +54,8 @@ public class ApnsPushNotificationController extends PushNotificationController {
             final HttpServletRequest httpRequest) {
 
         if (LOG.isInfoEnabled()) {
-            LOG.info("Handling APNs notification for device token [{}] from [{}]", deviceToken,
+            LOG.info("Handling APNs notification for device token [{}] from [{}]",
+                    maskSensitive(deviceToken),
                     httpRequest.getHeader(HttpHeaders.USER_AGENT));
         }
 
