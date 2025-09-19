@@ -72,3 +72,18 @@ If you need to specify a custom location/name of the files, you can provide argu
 ```sh
 $ export BISQ_RELAY_OPTS="-Dfcm.firebaseConfigurationFile=serviceAccountKey.json -Dapns.certificateFile=apnsCert.production.p12 -Dapns.certificatePasswordFile=apnsCertPassword.txt"; ./bisq-relay
 ```
+
+## Deploying a Local Test Environment
+
+Use the following docker command to deploy a complete local test environment:
+
+```sh
+  docker compose up --build
+```
+
+Once deployed, the following will be available:
+
+- Application REST API: http://127.0.0.1:8080 (e.g. `POST http://127.0.0.1:8080/v1/apns/device/{deviceToken}`)
+- Application management interface: http://127.0.0.1:9400 (e.g. http://127.0.0.1:9400/actuator/info)
+- Grafana: http://127.0.0.1:3000
+- Prometheus: http://127.0.0.1:9090
