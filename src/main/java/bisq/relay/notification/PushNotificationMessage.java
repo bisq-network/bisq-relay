@@ -19,9 +19,19 @@ package bisq.relay.notification;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.annotation.Nullable;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PushNotificationMessage(
         @Nullable String encrypted,
         boolean isUrgent) {
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
+                .append("encrypted", encrypted)
+                .append("isUrgent", isUrgent)
+                .toString();
+    }
 }

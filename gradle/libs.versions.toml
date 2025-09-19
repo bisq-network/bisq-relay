@@ -5,6 +5,7 @@
 # when multiple versions are attempted to be brought in as transitive dependencies of other requirements.
 [versions]
 firebase-lib = { strictly = '9.2.0' }
+apache-commons-lib = { strictly = '3.18.0' }
 gradle-git-properties-plugin = { strictly = '2.5.2' }
 junit-jupiter-lib = { strictly = '5.10.2' }
 logback-lib = { strictly = '1.5.3' }
@@ -20,6 +21,7 @@ springframework-plugin = { strictly = '3.2.3' }
 # Note: keys can contain dash (protobuf-java) but the dash is replaced by dot when referenced
 # in a build.gradle ('implementation libs.protobuf.java')
 [libraries]
+apache-commons-lang3 = { module = 'org.apache.commons:commons-lang3', version.ref = 'apache-commons-lib' }
 firebase = { module = 'com.google.firebase:firebase-admin', version.ref = 'firebase-lib' }
 junit-jupiter = { module = 'org.junit.jupiter:junit-jupiter', version.ref = 'junit-jupiter-lib' }
 logback-core = { module = 'ch.qos.logback:logback-core', version.ref = 'logback-lib' }
