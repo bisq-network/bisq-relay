@@ -5,6 +5,7 @@
 # when multiple versions are attempted to be brought in as transitive dependencies of other requirements.
 [versions]
 firebase-lib = { strictly = '9.2.0' }
+gradle-git-properties-plugin = { strictly = '2.5.2' }
 junit-jupiter-lib = { strictly = '5.10.2' }
 logback-lib = { strictly = '1.5.3' }
 lombok-lib = { strictly = '1.18.30' }
@@ -24,9 +25,11 @@ junit-jupiter = { module = 'org.junit.jupiter:junit-jupiter', version.ref = 'jun
 logback-core = { module = 'ch.qos.logback:logback-core', version.ref = 'logback-lib' }
 logback-classic = { module = 'ch.qos.logback:logback-classic', version.ref = 'logback-lib' }
 lombok = { module = 'org.projectlombok:lombok', version.ref = 'lombok-lib' }
+micrometer-registry-prometheus = { module = 'io.micrometer:micrometer-registry-prometheus' }
 pushy = { module = 'com.eatthepath:pushy', version.ref = 'pushy-lib' }
 slf4j-api = { module = 'org.slf4j:slf4j-api', version.ref = 'slf4j-lib' }
 spring-boot-dependencies = { module = 'org.springframework.boot:spring-boot-dependencies', version.ref = 'spring-boot-lib' }
+spring-boot-actuator = { module = 'org.springframework.boot:spring-boot-starter-actuator', version.ref = 'spring-boot-lib' }
 spring-boot-web = { module = 'org.springframework.boot:spring-boot-starter-web', version.ref = 'spring-boot-lib' }
 spring-boot-validation = { module = 'org.springframework.boot:spring-boot-starter-validation', version.ref = 'spring-boot-lib' }
 spring-boot-test = { module = 'org.springframework.boot:spring-boot-starter-test', version.ref = 'spring-boot-lib' }
@@ -37,3 +40,4 @@ spring-boot-test = { module = 'org.springframework.boot:spring-boot-starter-test
 shadow = { id = 'com.github.johnrengelman.shadow', version.ref = 'shadow-plugin' }
 springDependencyManagement = { id = 'io.spring.dependency-management', version.ref = 'spring-plugin' }
 springframeworkBoot = { id = 'org.springframework.boot', version.ref = 'springframework-plugin' }
+gradleGitProperties = { id = 'com.gorylenko.gradle-git-properties', version.ref = 'gradle-git-properties-plugin' }
