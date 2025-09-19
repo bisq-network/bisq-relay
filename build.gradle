@@ -59,11 +59,6 @@ dependencies {
     implementation libs.logback.core
     implementation libs.logback.classic
 
-    compileOnly libs.lombok
-    annotationProcessor libs.lombok
-    testAnnotationProcessor libs.lombok
-    testCompileOnly libs.lombok
-
     testImplementation libs.junit.jupiter
     testImplementation libs.spring.boot.test
 }

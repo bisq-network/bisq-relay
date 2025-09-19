@@ -9,7 +9,6 @@ firebase-lib = { strictly = '9.6.0' }
 gradle-git-properties-plugin = { strictly = '2.5.2' }
 junit-jupiter-lib = { strictly = '5.13.4' }
 logback-lib = { strictly = '1.5.18' }
-lombok-lib = { strictly = '1.18.30' }
 pushy-lib = { strictly = '0.15.4' }
 slf4j-lib = { strictly = '2.0.17' }
 spring-boot-lib = { strictly = '3.5.6' }
@@ -26,7 +25,6 @@ firebase = { module = 'com.google.firebase:firebase-admin', version.ref = 'fireb
 junit-jupiter = { module = 'org.junit.jupiter:junit-jupiter', version.ref = 'junit-jupiter-lib' }
 logback-core = { module = 'ch.qos.logback:logback-core', version.ref = 'logback-lib' }
 logback-classic = { module = 'ch.qos.logback:logback-classic', version.ref = 'logback-lib' }
-lombok = { module = 'org.projectlombok:lombok', version.ref = 'lombok-lib' }
 micrometer-registry-prometheus = { module = 'io.micrometer:micrometer-registry-prometheus' }
 pushy = { module = 'com.eatthepath:pushy', version.ref = 'pushy-lib' }
 slf4j-api = { module = 'org.slf4j:slf4j-api', version.ref = 'slf4j-lib' }
