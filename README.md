@@ -16,21 +16,21 @@ There are two ways to clone it before it can be built:
 
 1. Use the --recursive option in the clone command:
 ```sh
-$ git clone --recursive  https://github.com/bisq-network/bisq-relay.git
+  git clone --recursive  https://github.com/bisq-network/bisq-relay.git
 ```
 
 2. Do a normal clone, and pull down the bisq repo dependency with two git submodule commands:
 ```sh
-$ git clone https://github.com/bisq-network/bisq-relay.git
-$ cd bisq-relay
-$ git submodule init
-$ git submodule update
+  git clone https://github.com/bisq-network/bisq-relay.git
+  cd bisq-relay
+  git submodule init
+  git submodule update
 ```
 
 ### Build the Project
 
 ```sh
-$ ./gradlew clean build
+  ./gradlew clean build
 ```
 
 ## Running the Service
@@ -65,12 +65,12 @@ In order to obtain the APNs certificate, the following will need to be done on m
 After building the project, a `bisq-relay` script will be generated at the root of the project.
 Run the script. If the necessary files as described above are located in the root folder, the service should start running.
 ```sh
-$ ./bisq-relay
+  ./bisq-relay
 ```
 
 If you need to specify a custom location/name of the files, you can provide arguments as follows:
 ```sh
-$ export BISQ_RELAY_OPTS="-Dfcm.firebaseConfigurationFile=serviceAccountKey.json -Dapns.certificateFile=apnsCert.production.p12 -Dapns.certificatePasswordFile=apnsCertPassword.txt"; ./bisq-relay
+  export BISQ_RELAY_OPTS="-Dfcm.firebaseConfigurationFile=serviceAccountKey.json -Dapns.certificateFile=apnsCert.production.p12 -Dapns.certificatePasswordFile=apnsCertPassword.txt"; ./bisq-relay
 ```
 
 ## Deploying a Local Test Environment
