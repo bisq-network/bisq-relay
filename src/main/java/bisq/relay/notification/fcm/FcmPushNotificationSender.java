@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.FileInputStream;
@@ -52,6 +53,7 @@ import static bisq.relay.notification.metrics.PushMetrics.PROVIDER_ID_FCM;
 
 @PushProvider(PROVIDER_ID_FCM)
 @Service
+@ConditionalOnProperty(name = "fcm.enabled", havingValue = "true", matchIfMissing = false)
 public class FcmPushNotificationSender implements PushNotificationSender {
     private static final Logger LOG = LoggerFactory.getLogger(FcmPushNotificationSender.class);
 

@@ -58,6 +58,7 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
             @Value("${apns.bundleId}") final String apnsBundleId,
             @Value("${apns.certificateFile}") final String apnsCertificateFile,
             @Value("${apns.certificatePasswordFile}") final String apnsCertificatePasswordFile,
+            @Value("${apns.useSandbox:false}") final boolean useSandbox,
             final ApnsPushNotificationBuilder apnsPushNotificationBuilder)
             throws IOException {
         this.apnsBundleId = apnsBundleId;
@@ -70,12 +71,16 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
 
         final File appleCertFile = new File(apnsCertificateFile);
 
+        final String apnsHost = useSandbox
+                ? ApnsClientBuilder.DEVELOPMENT_APNS_HOST
+                : ApnsClientBuilder.PRODUCTION_APNS_HOST;
+
         apnsClient = new ApnsClientBuilder()
-                .setApnsServer(ApnsClientBuilder.PRODUCTION_APNS_HOST)
+                .setApnsServer(apnsHost)
                 .setClientCredentials(appleCertFile, appleCertPassword)
                 .build();
 
-        LOG.info("APNS client is ready to push notifications");
+        LOG.info("APNS client is ready to push notifications (sandbox={})", useSandbox);
     }
 
     @VisibleForTesting

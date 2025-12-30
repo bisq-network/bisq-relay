@@ -57,7 +57,7 @@ public class RelayController {
     @Autowired
     public RelayController(
             final ApnsPushNotificationController apnsPushNotificationController,
-            final FcmPushNotificationController fcmPushNotificationController) {
+            @Autowired(required = false) final FcmPushNotificationController fcmPushNotificationController) {
         this.apnsPushNotificationController = apnsPushNotificationController;
         this.fcmPushNotificationController = fcmPushNotificationController;
     }
@@ -83,6 +83,9 @@ public class RelayController {
                 encryptedMessage, true);
 
         if (isAndroid.isPresent() && isAndroid.get().equals(true)) {
+            if (fcmPushNotificationController == null) {
+                throw new BadArgumentsException("FCM is not enabled on this server");
+            }
             return fcmPushNotificationController.sendFcmNotification(
                     deviceToken, pushNotificationMessage, httpRequest).thenApply(result -> {
                 if (result.getStatusCode().equals(HttpStatus.OK)) {
