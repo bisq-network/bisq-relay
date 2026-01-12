@@ -36,6 +36,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static bisq.relay.util.MaskingUtil.maskSensitive;
+
 /**
  * This controller exists to handle legacy requests for the /relay endpoint.
  *
@@ -69,7 +71,9 @@ public class RelayController {
 
         if (LOG.isInfoEnabled()) {
             LOG.info("Relaying notification; isAndroid={} token={} encryptedMessage={}",
-                    isAndroid, deviceTokenHex, encryptedMessageHex);
+                    isAndroid.orElse(null),
+                    maskSensitive(deviceTokenHex.orElse(null)),
+                    maskSensitive(encryptedMessageHex.orElse(null)));
         }
 
         final String deviceToken = decodeParameter(deviceTokenHex, "token");

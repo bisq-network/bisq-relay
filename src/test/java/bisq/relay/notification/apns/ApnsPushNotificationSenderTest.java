@@ -30,6 +30,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -42,6 +43,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest
+@ActiveProfiles("test")
 class ApnsPushNotificationSenderTest {
     private static final String DEVICE_TOKEN =
             "d45161df3d172837f1b83bb3e411d5a63120de6b435ff9235adb70d619d162a1";
