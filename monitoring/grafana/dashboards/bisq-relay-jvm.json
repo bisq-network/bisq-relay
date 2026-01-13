@@ -1,0 +1,200 @@
+{
+  "title": "Bisq Relay – JVM",
+  "uid": "bisq-relay-jvm",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "tags": [
+    "jvm"
+  ],
+  "refresh": "10s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Uptime",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "process_uptime_seconds"
+        }
+      ],
+      "options": {
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU Usage",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "process_cpu_usage",
+          "legendFormat": "process"
+        },
+        {
+          "expr": "system_cpu_usage",
+          "legendFormat": "system"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Threads",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "jvm_threads_live_threads",
+          "legendFormat": "live"
+        },
+        {
+          "expr": "jvm_threads_peak_threads",
+          "legendFormat": "peak"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap Memory Usage",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (area) (jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "used"
+        },
+        {
+          "expr": "sum by (area) (jvm_memory_max_bytes{area=\"heap\"})",
+          "legendFormat": "max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "GC Allocated / Promoted (per second)",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(jvm_gc_memory_allocated_bytes_total[5m])",
+          "legendFormat": "allocated"
+        },
+        {
+          "expr": "rate(jvm_gc_memory_promoted_bytes_total[5m])",
+          "legendFormat": "promoted"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "GC Pause",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "1000 * sum by (gc, cause, action) (rate(jvm_gc_pause_seconds_sum[5m]) / rate(jvm_gc_pause_seconds_count[5m]))",
+          "legendFormat": "average"
+        },
+        {
+          "expr": "1000 * max_over_time(jvm_gc_pause_seconds_max[5m])",
+          "legendFormat": "max"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    }
+  ]
+}
