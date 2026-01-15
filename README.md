@@ -3,7 +3,7 @@
 ## Overview
 
 This service acts as an intermediary between Bisq clients and Apple Push Notification service (APNs)
-or Firebase Cloud Messaging (FCM) in order to send push notifications to the mobile app.
+or Firebase Cloud Messaging (FCM) to send push notifications to the mobile app.
 More documentation can be found [here](https://github.com/bisq-network/bisqremote/wiki).
 
 ## Building the Source Code
@@ -19,7 +19,7 @@ There are two ways to clone it before it can be built:
 $ git clone --recursive  https://github.com/bisq-network/bisq-relay.git
 ```
 
-2. Do a normal clone, and pull down the bisq repo dependency with two git submodule commands:
+2. Do a normal clone and pull down the bisq repo dependency with two git submodule commands:
 ```sh
 $ git clone https://github.com/bisq-network/bisq-relay.git
 $ cd bisq-relay
@@ -37,7 +37,7 @@ $ ./gradlew clean build
 
 ### Requirements
 
-Prior to running the service, several files need to be obtained in order to be able to
+Before running the service, several files need to be obtained to be able to
 send push notifications to APNs and FCM, and ultimately to the corresponding mobile app.
 
 #### FCM
@@ -71,7 +71,8 @@ In order to obtain the APNs certificate, the following will need to be done on m
 ### Run the Script
 
 After building the project, a `bisq-relay` script will be generated at the root of the project.
-Run the script. If the necessary files as described above are located in the root folder, the service should start running.
+Run the script. If the necessary files as described above are located in the root folder, the service
+should start running.
 ```sh
 $ ./bisq-relay
 ```
