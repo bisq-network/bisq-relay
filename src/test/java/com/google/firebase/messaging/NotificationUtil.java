@@ -24,6 +24,7 @@ import java.util.Objects;
 
 public final class NotificationUtil {
     private NotificationUtil() {
+        throw new AssertionError("This class must not be instantiated");
     }
 
     public static String getTitle(@Nonnull final Notification notification)
