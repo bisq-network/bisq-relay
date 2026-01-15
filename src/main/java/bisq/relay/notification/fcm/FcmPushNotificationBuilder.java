@@ -20,9 +20,11 @@ package bisq.relay.notification.fcm;
 import bisq.relay.notification.PushNotificationMessage;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.Notification;
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -33,6 +35,9 @@ public class FcmPushNotificationBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(FcmPushNotificationBuilder.class);
     // The maximum time-to-live duration of an Android message is 4 weeks
     public static final long TTL_DAYS = 28;
+
+    @Value("${fcm.sendDataOnly:true}")
+    private boolean sendDataOnly;
 
     public Message buildMessage(
             @Nonnull final PushNotificationMessage pushNotificationMessage,
@@ -47,6 +52,13 @@ public class FcmPushNotificationBuilder {
             messageBuilder.putData("encrypted", pushNotificationMessage.encrypted());
         } else {
             LOG.warn("PushNotificationMessage is missing encrypted content: {}", pushNotificationMessage);
+        }
+
+        if (!sendDataOnly) {
+            messageBuilder.setNotification(Notification.builder()
+                    .setTitle("You have received a Bisq notification")
+                    .setBody("Click to decrypt")
+                    .build());
         }
 
         return messageBuilder.build();

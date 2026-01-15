@@ -48,6 +48,14 @@ under `project settings` > `service accounts`.
 > Note, the Android app needs to be built with a corresponding `google-services.json` file
 > for the same Firebase project.
 
+By default, the relay sends "data-only" messages. This allows the mobile app to receive and process
+messages in the background and control how/if it wants to show a notification to the user.
+If you want to send basic notifications that are only processed by the app when clicked on, you can
+set the `fcm.sendDataOnly` property to `false`.
+
+> For more details about messages and notifications,
+> see: https://firebase.google.com/docs/cloud-messaging/android/receive
+
 #### APNs
 An appropriate `apnsCertificate.production.p12` file needs to be copied to the root folder, along with the
 corresponding password stored within a `apnsCertificatePassword.txt` file.
