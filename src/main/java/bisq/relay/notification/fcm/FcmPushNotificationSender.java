@@ -20,6 +20,7 @@ package bisq.relay.notification.fcm;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
 import bisq.relay.notification.PushNotificationSender;
+import bisq.relay.notification.metrics.PushProvider;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
@@ -47,6 +48,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import static bisq.relay.notification.metrics.PushMetrics.PROVIDER_ID_FCM;
+
+@PushProvider(PROVIDER_ID_FCM)
 @Service
 public class FcmPushNotificationSender implements PushNotificationSender {
     private static final Logger LOG = LoggerFactory.getLogger(FcmPushNotificationSender.class);
@@ -98,6 +102,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
 
     // TODO implement circuit breaker, can use resilience4j
     //  Ref: https://www.baeldung.com/spring-boot-resilience4j
+    @Override
     public CompletableFuture<PushNotificationResult> sendNotification(
             @Nonnull final PushNotificationMessage pushNotificationMessage,
             @Nonnull final String deviceToken) {

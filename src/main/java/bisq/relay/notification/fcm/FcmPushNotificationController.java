@@ -19,12 +19,14 @@ package bisq.relay.notification.fcm;
 
 import bisq.relay.notification.PushNotificationController;
 import bisq.relay.notification.PushNotificationMessage;
+import bisq.relay.notification.PushNotificationSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,9 +44,9 @@ public class FcmPushNotificationController extends PushNotificationController {
 
     @Autowired
     public FcmPushNotificationController(
-            final FcmPushNotificationSender fcmSender,
+            @Qualifier("fcmPushNotificationSender") final PushNotificationSender sender,
             final ObjectMapper objectMapper) {
-        super(fcmSender, objectMapper);
+        super(sender, objectMapper);
     }
 
     @PostMapping(value = "/v1/fcm/device/{deviceToken}")

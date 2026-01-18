@@ -1,0 +1,276 @@
+{
+  "title": "Bisq Relay – Push Notifications",
+  "uid": "bisq-relay-push",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "tags": [
+    "push"
+  ],
+  "refresh": "10s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "provider",
+        "type": "query",
+        "label": "Provider",
+        "datasource": null,
+        "refresh": 2,
+        "query": "label_values(push_total, provider)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "__all"
+        }
+      },
+      {
+        "name": "result",
+        "type": "query",
+        "label": "Result",
+        "datasource": null,
+        "refresh": 2,
+        "query": "label_values(push_total, result)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Attempt Rate",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(push_attempts_total{provider=~\"$provider\"}[5m]))",
+          "legendFormat": "{{$provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Accept Rate",
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(push_total{provider=~\"$provider\",result=\"accepted\"}[5m])) / clamp_min(sum(rate(push_total{provider=~\"$provider\"}[5m])), 1e-9)",
+          "legendFormat": "{{provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Error Rate",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(push_total{provider=~\"$provider\",result=\"error\"}[5m])) / clamp_min(sum(rate(push_attempts_total{provider=~\"$provider\"}[5m])), 1e-9)",
+          "legendFormat": "{{$provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Delivery Outcome",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum by (result, provider) (rate(push_total{provider=~\"$provider\"}[5m]))",
+          "legendFormat": "{{provider}} {{result}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency Percentiles (accepted)",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le, provider) (rate(push_latency_seconds_bucket{provider=~\"$provider\",result=\"accepted\"}[5m])))",
+          "legendFormat": "p50 {{provider}}"
+        },
+        {
+          "expr": "histogram_quantile(0.9, sum by (le, provider) (rate(push_latency_seconds_bucket{provider=~\"$provider\",result=\"accepted\"}[5m])))",
+          "legendFormat": "p90 {{provider}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(push_latency_seconds_bucket{provider=~\"$provider\",result=\"accepted\"}[5m])))",
+          "legendFormat": "p95 {{provider}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, provider) (rate(push_latency_seconds_bucket{provider=~\"$provider\",result=\"accepted\"}[5m])))",
+          "legendFormat": "p99 {{provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Rejected/Error by Code",
+      "description": "Aggregated by classification tag `code` (token, throttle, payload, server, auth, io, other).",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (code) (rate(push_latency_seconds_count{provider=~\"$provider\",result!=\"accepted\"}[5m]))",
+          "legendFormat": "{{code}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Top Error Codes (5m avg)",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (code) (rate(push_latency_seconds_count{provider=~\"$provider\",result=\"error\"}[5m])))",
+          "legendFormat": "{{code}}"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Throughput: Attempts vs Accepted",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(push_attempts_total{provider=~\"$provider\"}[5m]))",
+          "legendFormat": "attempts"
+        },
+        {
+          "expr": "sum(rate(push_total{provider=~\"$provider\",result=\"accepted\"}[5m]))",
+          "legendFormat": "accepted"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    }
+  ]
+}

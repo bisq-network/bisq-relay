@@ -1,0 +1,128 @@
+{
+  "title": "Bisq Relay – HTTP",
+  "uid": "bisq-relay-http",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "tags": [
+    "http"
+  ],
+  "refresh": "10s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "uri",
+        "type": "query",
+        "label": "URI",
+        "datasource": null,
+        "refresh": 2,
+        "query": "label_values(http_server_requests_seconds_count, uri)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request Rate by URI",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (uri) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m]))",
+          "legendFormat": "{{uri}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Rate by Status",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency Percentiles",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.9, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m])))",
+          "legendFormat": "p90"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    }
+  ]
+}

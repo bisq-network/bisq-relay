@@ -20,6 +20,7 @@ package bisq.relay.notification.apns;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
 import bisq.relay.notification.PushNotificationSender;
+import bisq.relay.notification.metrics.PushProvider;
 import com.eatthepath.pushy.apns.ApnsClient;
 import com.eatthepath.pushy.apns.ApnsClientBuilder;
 import com.eatthepath.pushy.apns.PushNotificationResponse;
@@ -41,6 +42,9 @@ import java.util.Objects;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
 
+import static bisq.relay.notification.metrics.PushMetrics.PROVIDER_ID_APNS;
+
+@PushProvider(PROVIDER_ID_APNS)
 @Service
 public class ApnsPushNotificationSender implements PushNotificationSender {
     private static final Logger LOG = LoggerFactory.getLogger(ApnsPushNotificationSender.class);
@@ -66,8 +70,10 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
 
         final File appleCertFile = new File(apnsCertificateFile);
 
-        apnsClient = new ApnsClientBuilder().setApnsServer(ApnsClientBuilder.PRODUCTION_APNS_HOST)
-                .setClientCredentials(appleCertFile, appleCertPassword).build();
+        apnsClient = new ApnsClientBuilder()
+                .setApnsServer(ApnsClientBuilder.PRODUCTION_APNS_HOST)
+                .setClientCredentials(appleCertFile, appleCertPassword)
+                .build();
 
         LOG.info("APNS client is ready to push notifications");
     }
@@ -90,6 +96,7 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
 
     // TODO implement circuit breaker, can use resilience4j
     //  Ref: https://www.baeldung.com/spring-boot-resilience4j
+    @Override
     public CompletableFuture<PushNotificationResult> sendNotification(
             @Nonnull final PushNotificationMessage pushNotificationMessage,
             @Nonnull final String deviceToken) {
