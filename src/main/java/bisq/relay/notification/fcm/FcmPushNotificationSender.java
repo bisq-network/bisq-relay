@@ -17,6 +17,7 @@
 
 package bisq.relay.notification.fcm;
 
+import bisq.relay.config.FcmProperties;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
 import bisq.relay.notification.PushNotificationSender;
@@ -38,7 +39,6 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -63,18 +63,17 @@ public class FcmPushNotificationSender implements PushNotificationSender {
 
     @Autowired
     public FcmPushNotificationSender(
-            @Value("${fcm.firebaseUrl}") final String fcmFirebaseUrl,
-            @Value("${fcm.firebaseConfigurationFile}") final String fcmFirebaseConfigurationFile,
+            final FcmProperties fcmProperties,
             final FcmPushNotificationBuilder fcmPushNotificationBuilder) throws IOException {
         this.fcmPushNotificationBuilder = fcmPushNotificationBuilder;
 
         this.executor = MoreExecutors.directExecutor();
 
-        InputStream firebaseConfigStream = new FileInputStream(fcmFirebaseConfigurationFile);
+        InputStream firebaseConfigStream = new FileInputStream(fcmProperties.getFirebaseConfigurationFile());
         GoogleCredentials googleCredentials = GoogleCredentials.fromStream(firebaseConfigStream);
         FirebaseOptions firebaseOptions = FirebaseOptions.builder()
                 .setCredentials(googleCredentials)
-                .setDatabaseUrl(fcmFirebaseUrl)
+                .setDatabaseUrl(fcmProperties.getFirebaseUrl())
                 .build();
         if (FirebaseApp.getApps().isEmpty()) {
             FirebaseApp.initializeApp(firebaseOptions);

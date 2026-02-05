@@ -49,7 +49,7 @@ under `project settings` > `service accounts`.
 > for the same Firebase project.
 
 #### APNs
-An appropriate `apnsCertificate.production.p12` file needs to be copied to the root folder, along with the
+An appropriate `apnsCertificate.p12` file needs to be copied to the root folder, along with the
 corresponding password stored within a `apnsCertificatePassword.txt` file.
 
 > Note, the APNs certificate needs to be manually renewed every year.
@@ -60,17 +60,69 @@ In order to obtain the APNs certificate, the following will need to be done on m
 3. In keychain, go to "My certificates". Expand the Apple Push Service certificate and select both lines.
    Then export the certificate as a *.p12 file.
 
+### Configuration
+
+The service is configured via environment variables. The following variables are available:
+
+#### APNs Configuration
+
+| Environment Variable | Description | Default |
+|---------------------|-------------|---------|
+| `BISQ_RELAY_APNS_BUNDLE_ID` | iOS app bundle identifier (required) | _(none)_ |
+| `BISQ_RELAY_APNS_CERTIFICATE_FILE` | Path to .p12 certificate file | `apnsCertificate.p12` |
+| `BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE` | Path to certificate password file | `apnsCertificatePassword.txt` |
+| `BISQ_RELAY_APNS_USE_SANDBOX` | Use APNs sandbox environment | `true` |
+
+> **Note:** `BISQ_RELAY_APNS_USE_SANDBOX` defaults to `true` for safety. Production deployments must explicitly set this to `false`.
+
+#### FCM Configuration
+
+| Environment Variable | Description | Default |
+|---------------------|-------------|---------|
+| `BISQ_RELAY_FCM_ENABLED` | Enable FCM push notifications | `false` |
+| `BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE` | Path to Firebase service account JSON | `fcmServiceAccountKey.json` |
+| `BISQ_RELAY_FCM_FIREBASE_URL` | Firebase database URL | `https://bisqnotifications.firebaseio.com` |
+
 ### Run the Script
 
 After building the project, a `bisq-relay` script will be generated at the root of the project.
-Run the script. If the necessary files as described above are located in the root folder, the service should start running.
+
+#### Development/Sandbox Mode
+
+For development with APNs sandbox:
 ```sh
+  export BISQ_RELAY_APNS_BUNDLE_ID="your.app.bundle.id"
   ./bisq-relay
 ```
 
-If you need to specify a custom location/name of the files, you can provide arguments as follows:
+#### Production Mode
+
+For production deployment:
 ```sh
-  export BISQ_RELAY_OPTS="-Dfcm.firebaseConfigurationFile=serviceAccountKey.json -Dapns.certificateFile=apnsCert.production.p12 -Dapns.certificatePasswordFile=apnsCertPassword.txt"; ./bisq-relay
+  export BISQ_RELAY_APNS_BUNDLE_ID="your.app.bundle.id"
+  export BISQ_RELAY_APNS_USE_SANDBOX=false
+  export BISQ_RELAY_APNS_CERTIFICATE_FILE=/path/to/apnsCertificate.production.p12
+  export BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE=/path/to/apnsCertificatePassword.txt
+  ./bisq-relay
+```
+
+#### With FCM Enabled
+
+To also enable FCM (Android) push notifications:
+```sh
+  export BISQ_RELAY_APNS_BUNDLE_ID="your.app.bundle.id"
+  export BISQ_RELAY_APNS_USE_SANDBOX=false
+  export BISQ_RELAY_FCM_ENABLED=true
+  export BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE=/path/to/fcmServiceAccountKey.json
+  ./bisq-relay
+```
+
+#### Legacy Configuration (Deprecated)
+
+You can still use Java system properties if needed:
+```sh
+  export BISQ_RELAY_OPTS="-Dapns.bundleId=your.app.bundle.id -Dapns.useSandbox=false"
+  ./bisq-relay
 ```
 
 ## Deploying a Local Test Environment

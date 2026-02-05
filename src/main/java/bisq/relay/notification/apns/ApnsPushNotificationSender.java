@@ -17,6 +17,7 @@
 
 package bisq.relay.notification.apns;
 
+import bisq.relay.config.ApnsProperties;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
 import bisq.relay.notification.PushNotificationSender;
@@ -32,7 +33,6 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -55,23 +55,20 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
 
     @Autowired
     public ApnsPushNotificationSender(
-            @Value("${apns.bundleId}") final String apnsBundleId,
-            @Value("${apns.certificateFile}") final String apnsCertificateFile,
-            @Value("${apns.certificatePasswordFile}") final String apnsCertificatePasswordFile,
-            @Value("${apns.useSandbox:false}") final boolean useSandbox,
+            final ApnsProperties apnsProperties,
             final ApnsPushNotificationBuilder apnsPushNotificationBuilder)
             throws IOException {
-        this.apnsBundleId = apnsBundleId;
+        this.apnsBundleId = apnsProperties.getBundleId();
         this.apnsPushNotificationBuilder = apnsPushNotificationBuilder;
 
         final String appleCertPassword;
-        try (Scanner scanner = new Scanner(new FileInputStream(apnsCertificatePasswordFile))) {
+        try (Scanner scanner = new Scanner(new FileInputStream(apnsProperties.getCertificatePasswordFile()))) {
             appleCertPassword = scanner.next();
         }
 
-        final File appleCertFile = new File(apnsCertificateFile);
+        final File appleCertFile = new File(apnsProperties.getCertificateFile());
 
-        final String apnsHost = useSandbox
+        final String apnsHost = apnsProperties.isUseSandbox()
                 ? ApnsClientBuilder.DEVELOPMENT_APNS_HOST
                 : ApnsClientBuilder.PRODUCTION_APNS_HOST;
 
@@ -80,7 +77,7 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
                 .setClientCredentials(appleCertFile, appleCertPassword)
                 .build();
 
-        LOG.info("APNS client is ready to push notifications (sandbox={})", useSandbox);
+        LOG.info("APNS client is ready to push notifications (sandbox={})", apnsProperties.isUseSandbox());
     }
 
     @VisibleForTesting
