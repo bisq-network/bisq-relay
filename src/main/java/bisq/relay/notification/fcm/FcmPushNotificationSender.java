@@ -69,14 +69,15 @@ public class FcmPushNotificationSender implements PushNotificationSender {
 
         this.executor = MoreExecutors.directExecutor();
 
-        InputStream firebaseConfigStream = new FileInputStream(fcmProperties.getFirebaseConfigurationFile());
-        GoogleCredentials googleCredentials = GoogleCredentials.fromStream(firebaseConfigStream);
-        FirebaseOptions firebaseOptions = FirebaseOptions.builder()
-                .setCredentials(googleCredentials)
-                .setDatabaseUrl(fcmProperties.getFirebaseUrl())
-                .build();
-        if (FirebaseApp.getApps().isEmpty()) {
-            FirebaseApp.initializeApp(firebaseOptions);
+        try (InputStream firebaseConfigStream = new FileInputStream(fcmProperties.getFirebaseConfigurationFile())) {
+            GoogleCredentials googleCredentials = GoogleCredentials.fromStream(firebaseConfigStream);
+            FirebaseOptions firebaseOptions = FirebaseOptions.builder()
+                    .setCredentials(googleCredentials)
+                    .setDatabaseUrl(fcmProperties.getFirebaseUrl())
+                    .build();
+            if (FirebaseApp.getApps().isEmpty()) {
+                FirebaseApp.initializeApp(firebaseOptions);
+            }
         }
 
         this.firebaseMessaging = FirebaseMessaging.getInstance();
@@ -85,7 +86,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
     }
 
     @VisibleForTesting
-    public FcmPushNotificationSender(
+    FcmPushNotificationSender(
             final FirebaseMessaging firebaseMessaging,
             final FcmPushNotificationBuilder fcmPushNotificationBuilder) {
         this.firebaseMessaging = firebaseMessaging;

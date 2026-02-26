@@ -46,7 +46,7 @@ corresponding password stored within a `apnsCertificatePassword.txt` file.
 
 > Note, the APNs certificate needs to be manually renewed every year.
 
-In order to obtain the APNs certificate, the following will need to be done on macOS:
+To get the APNs certificate, the following will need to be done on macOS:
 1. Create and download a cer file from https://developer.apple.com/account/ios/certificate/?teamId=XXXXXX
 2. Add the *.cer file to your keychain.
 3. In keychain, go to "My certificates". Expand the Apple Push Service certificate and select both lines.
@@ -125,8 +125,8 @@ You can still use Java system properties if needed:
 
 Use the following docker command to deploy a complete local test environment:
 
-```sh
-  docker compose up --build
+```shell
+docker compose up --build
 ```
 
 Once deployed, the following will be available:
