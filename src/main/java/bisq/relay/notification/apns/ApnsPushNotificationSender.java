@@ -81,7 +81,7 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
     }
 
     @VisibleForTesting
-    public ApnsPushNotificationSender(
+    ApnsPushNotificationSender(
             final ApnsClient apnsClient,
             final String apnsBundleId,
             final ApnsPushNotificationBuilder apnsPushNotificationBuilder) {

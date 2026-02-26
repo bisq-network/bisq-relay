@@ -40,17 +40,17 @@ public final class PushMetrics {
     // ========================================================================
 
     /**
-     * Counter for push notification attempts, tagged by provider.
+     * Counter for push notification attempts, tagged by the provider.
      */
     public static final String METRIC_PUSH_ATTEMPTS_TOTAL = "push_attempts_total";
 
     /**
-     * Counter for completed sends, tagged by provider and result.
+     * Counter for completed pushes, tagged by the provider and result.
      */
     public static final String METRIC_PUSH_TOTAL = "push_total";
 
     /**
-     * Histogram of send latencies in seconds, tagged by provider, result, and code.
+     * Histogram of push latencies in seconds, tagged by the provider, result, and code.
      */
     public static final String METRIC_PUSH_LATENCY_SECONDS = "push_latency_seconds";
 
