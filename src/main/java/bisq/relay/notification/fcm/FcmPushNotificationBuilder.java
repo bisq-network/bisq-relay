@@ -23,8 +23,6 @@ import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
 import jakarta.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -35,7 +33,7 @@ import java.util.Objects;
 @Component
 @ConditionalOnProperty(name = "fcm.enabled", havingValue = "true", matchIfMissing = false)
 public class FcmPushNotificationBuilder {
-    private static final Logger LOG = LoggerFactory.getLogger(FcmPushNotificationBuilder.class);
+
     // The maximum time-to-live duration of an Android message is 4 weeks
     public static final long TTL_DAYS = 28;
 
@@ -54,13 +52,8 @@ public class FcmPushNotificationBuilder {
         Objects.requireNonNull(pushNotificationMessage);
 
         Message.Builder messageBuilder = getMessageBuilder(pushNotificationMessage)
-                .setToken(deviceToken);
-
-        if (pushNotificationMessage.encrypted() != null) {
-            messageBuilder.putData("encrypted", pushNotificationMessage.encrypted());
-        } else {
-            LOG.warn("PushNotificationMessage is missing encrypted content: {}", pushNotificationMessage);
-        }
+                .setToken(deviceToken)
+                .putData("encrypted", pushNotificationMessage.encrypted());
 
         if (!fcmProperties.isSendDataOnly()) {
             messageBuilder.setNotification(Notification.builder()

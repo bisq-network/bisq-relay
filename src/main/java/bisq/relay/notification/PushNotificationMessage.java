@@ -18,13 +18,13 @@
 package bisq.relay.notification;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import jakarta.annotation.Nullable;
+import jakarta.validation.constraints.NotBlank;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PushNotificationMessage(
-        @Nullable String encrypted,
+        @NotBlank String encrypted,
         boolean isUrgent,
         boolean isMutableContent) {
 
