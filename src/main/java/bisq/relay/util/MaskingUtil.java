@@ -22,6 +22,7 @@ import jakarta.annotation.Nullable;
 public class MaskingUtil {
     private static final int DEFAULT_VISIBLE_CHARACTERS = 5;
     private static final char DEFAULT_MASK_CHARACTER = '*';
+    private static final int FIXED_MASK_LENGTH = 4;
 
     private MaskingUtil() {
         throw new AssertionError("This class must not be instantiated");
@@ -35,12 +36,15 @@ public class MaskingUtil {
 
         int minVisible = visibleChars * 2;
         if (value.length() <= minVisible) {
-            return String.valueOf(maskChar).repeat(value.length());
+            return String.valueOf(maskChar).repeat(FIXED_MASK_LENGTH);
         }
 
         String firstPart = value.substring(0, visibleChars);
         String lastPart = value.substring(value.length() - visibleChars);
-        String maskedMiddle = String.valueOf(maskChar).repeat(value.length() - (visibleChars * 2));
+
+        int actualMiddleLength = value.length() - minVisible;
+        int maskLength = Math.min(actualMiddleLength, FIXED_MASK_LENGTH);
+        String maskedMiddle = String.valueOf(maskChar).repeat(maskLength);
 
         return firstPart + maskedMiddle + lastPart;
     }
