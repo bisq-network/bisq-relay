@@ -156,6 +156,8 @@ class ApnsPushNotificationSenderTest {
     }
 
     private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent, final boolean mutableContent) {
+        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent, mutableContent);
+
         assertThat(sentPushNotification.getToken()).isEqualTo(DEVICE_TOKEN);
         assertThat(sentPushNotification.getExpiration()).isCloseTo(
                 Instant.now().plus(ApnsPushNotificationBuilder.INVALIDATION_TIME_PERIOD_DAYS, DAYS), within(10, SECONDS));
@@ -174,11 +176,7 @@ class ApnsPushNotificationSenderTest {
         assertThat(sentPushNotification.getTopic()).isEqualTo(APNS_BUNDLE_ID);
         assertThat(sentPushNotification.getPushType())
                 .isEqualTo(urgent ? PushType.ALERT : PushType.BACKGROUND);
-        if (urgent) {
-            assertThat(sentPushNotification.getCollapseId()).isNotNull();
-        } else {
-            assertThat(sentPushNotification.getCollapseId()).isNull();
-        }
+        assertThat(sentPushNotification.getCollapseId()).isEqualTo(pushNotificationMessage.coalescingKey());
     }
 
     private void thenThePushNotificationWasAccepted() {

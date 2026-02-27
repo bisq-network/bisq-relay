@@ -109,7 +109,7 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
 
         final PushNotificationFuture<SimpleApnsPushNotification, PushNotificationResponse<SimpleApnsPushNotification>>
                 sendNotificationFuture = apnsClient.sendNotification(apnsPushNotificationBuilder.buildPushNotification(
-                pushNotificationMessage, deviceToken, apnsBundleId));
+                pushNotificationMessage, deviceToken, apnsBundleId, pushNotificationMessage.coalescingKey()));
 
         sendNotificationFuture.whenComplete((response, cause) -> {
             if (response == null) {

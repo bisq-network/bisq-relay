@@ -111,7 +111,8 @@ public class FcmPushNotificationSender implements PushNotificationSender {
         Objects.requireNonNull(pushNotificationMessage);
         Objects.requireNonNull(deviceToken);
 
-        final Message message = fcmPushNotificationBuilder.buildMessage(pushNotificationMessage, deviceToken);
+        final Message message = fcmPushNotificationBuilder.buildMessage(
+                pushNotificationMessage, deviceToken, pushNotificationMessage.coalescingKey());
 
         final CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
 

@@ -154,6 +154,9 @@ class FcmPushNotificationSenderTest {
 
     private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent, final boolean sendDataOnly)
             throws NoSuchFieldException, IllegalAccessException {
+
+        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent, false);
+
         assertThat(MessageUtil.getMessageToken(sentPushNotification)).isEqualTo(DEVICE_TOKEN);
         assertThat(MessageUtil.getMessageData(sentPushNotification)).isEqualTo(Map.of("encrypted", "foo"));
 
@@ -162,6 +165,7 @@ class FcmPushNotificationSenderTest {
                 String.format("%ss", Duration.ofDays(FcmPushNotificationBuilder.TTL_DAYS).toSeconds()));
         assertThat(AndroidConfigUtil.getPriority(androidConfig)).isEqualTo(
                 urgent ? AndroidConfig.Priority.HIGH.name().toLowerCase() : AndroidConfig.Priority.NORMAL.name().toLowerCase());
+        assertThat(AndroidConfigUtil.getCollapseKey(androidConfig)).isEqualTo(pushNotificationMessage.coalescingKey());
 
         Notification notification = MessageUtil.getMessageNotification(sentPushNotification);
         if (sendDataOnly) {

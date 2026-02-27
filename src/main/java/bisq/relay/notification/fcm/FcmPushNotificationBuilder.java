@@ -23,6 +23,7 @@ import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -46,12 +47,14 @@ public class FcmPushNotificationBuilder {
 
     public Message buildMessage(
             @Nonnull final PushNotificationMessage pushNotificationMessage,
-            @Nonnull final String deviceToken
+            @Nonnull final String deviceToken,
+            @Nullable final String collapseKey
     ) {
+
         Objects.requireNonNull(deviceToken);
         Objects.requireNonNull(pushNotificationMessage);
 
-        Message.Builder messageBuilder = getMessageBuilder(pushNotificationMessage)
+        Message.Builder messageBuilder = getMessageBuilder(pushNotificationMessage, collapseKey)
                 .setToken(deviceToken)
                 .putData("encrypted", pushNotificationMessage.encrypted());
 
@@ -65,21 +68,28 @@ public class FcmPushNotificationBuilder {
         return messageBuilder.build();
     }
 
-    private Message.Builder getMessageBuilder(@Nonnull final PushNotificationMessage pushNotificationMessage) {
+    private Message.Builder getMessageBuilder(
+            @Nonnull final PushNotificationMessage pushNotificationMessage,
+            @Nullable final String collapseKey) {
+
         Objects.requireNonNull(pushNotificationMessage);
 
-        AndroidConfig androidConfig = getAndroidConfig(pushNotificationMessage);
+        AndroidConfig androidConfig = getAndroidConfig(pushNotificationMessage, collapseKey);
 
         return Message.builder()
                 .setAndroidConfig(androidConfig);
     }
 
-    private AndroidConfig getAndroidConfig(@Nonnull final PushNotificationMessage pushNotificationMessage) {
+    private AndroidConfig getAndroidConfig(
+            @Nonnull final PushNotificationMessage pushNotificationMessage,
+            @Nullable final String collapseKey
+    ) {
         Objects.requireNonNull(pushNotificationMessage);
         return AndroidConfig.builder()
                 .setTtl(Duration.ofDays(TTL_DAYS).toMillis())
                 .setPriority(pushNotificationMessage.isUrgent() ?
                         AndroidConfig.Priority.HIGH : AndroidConfig.Priority.NORMAL)
+                .setCollapseKey(collapseKey)
                 .build();
     }
 }

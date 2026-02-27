@@ -46,4 +46,11 @@ public final class AndroidConfigUtil {
         return (AndroidNotification) ReflectionUtil.getPrivateField(
                 AndroidConfig.class, "notification").get(androidConfig);
     }
+
+    public static String getCollapseKey(@Nonnull final AndroidConfig androidConfig)
+            throws NoSuchFieldException, IllegalAccessException {
+        Objects.requireNonNull(androidConfig, "androidConfig must not be null");
+        return (String) ReflectionUtil.getPrivateField(
+                AndroidConfig.class, "collapseKey").get(androidConfig);
+    }
 }

@@ -25,6 +25,7 @@ import com.eatthepath.pushy.apns.util.SimpleApnsPayloadBuilder;
 import com.eatthepath.pushy.apns.util.SimpleApnsPushNotification;
 import com.eatthepath.pushy.apns.util.TokenUtil;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -41,7 +42,8 @@ public class ApnsPushNotificationBuilder {
     public SimpleApnsPushNotification buildPushNotification(
             @Nonnull final PushNotificationMessage pushNotificationMessage,
             @Nonnull final String deviceToken,
-            @Nonnull final String topic) {
+            @Nonnull final String topic,
+            @Nullable final String collapseId) {
         Objects.requireNonNull(pushNotificationMessage);
         Objects.requireNonNull(deviceToken);
         Objects.requireNonNull(topic);
@@ -49,7 +51,6 @@ public class ApnsPushNotificationBuilder {
         final PushType pushType = pushNotificationMessage.isUrgent() ? PushType.ALERT : PushType.BACKGROUND;
         final DeliveryPriority deliveryPriority =
                 pushNotificationMessage.isUrgent() ? DeliveryPriority.IMMEDIATE : DeliveryPriority.CONSERVE_POWER;
-        final String collapseId = pushNotificationMessage.isUrgent() ? "notification" : null;
         final Instant invalidationTime = Instant.now().plus(INVALIDATION_TIME_PERIOD_DAYS, DAYS);
 
         return new SimpleApnsPushNotification(
