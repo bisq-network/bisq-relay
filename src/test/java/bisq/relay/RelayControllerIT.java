@@ -24,7 +24,9 @@ import bisq.relay.notification.apns.ApnsPushNotificationSender;
 import bisq.relay.notification.fcm.FcmPushNotificationSender;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,15 +38,20 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
@@ -54,6 +61,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("integrationtest")
 class RelayControllerIT {
+
+    /**
+     * Bisq v1 format: hex-encoded FCM token (hex-decode yields printable ASCII)
+     */
+    private static final String BISQ_V1_DEVICE_TOKEN =
+            "655f4d327849323153616543657774544c48365a504f3a41504139316247646a4d645034757a5f5954444a72482d" +
+                    "576c74584b6c4171594d665348434b2d7443522d646153786e5477754b445a4978785f4b7a64656d41483268794b54" +
+                    "746237756d776c35544d48414d4c4f44357753336241454b4761713468574d75723538326a31743570336c79476f30" +
+                    "5a30394d4e53466d784d566a32465a4b366f507674534e";
+    /**
+     * Bisq2 format: plain APNs hex token (64 hex chars representing 32 raw bytes)
+     */
+    private static final String BISQ_V2_APNS_TOKEN = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
+    /**
+     * Bisq2 format: plain FCM token (contains non-hex chars like ':', '_', '-')
+     */
+    private static final String BISQ_V2_FCM_TOKEN = "e_M2xI21SaeCewtTLH6ZPO:APA91bGdjMdP4uz_YTDJrH-WltXKlAqYMfSHCK-" +
+            "tCR-daSxnTwuKDZIxx";
+    private static final String HEX_ENCODED_MSG = Hex.encodeHexString(
+            "An Encrypted Message".getBytes(StandardCharsets.UTF_8));
+
     @MockitoBean
     private ApnsPushNotificationSender apnsSender;
     @MockitoBean
@@ -63,223 +91,166 @@ class RelayControllerIT {
     private MockMvc mockMvc;
 
     private HttpHeaders httpHeaders;
-    /** Bisq v1 format: hex-encoded FCM token (hex-decode yields printable ASCII) */
-    private String bisqV1DeviceToken;
-    /** Bisq2 format: plain APNs hex token (64 hex chars representing 32 raw bytes) */
-    private String bisqV2ApnsToken;
-    /** Bisq2 format: plain FCM token (contains non-hex chars like ':', '_', '-') */
-    private String bisqV2FcmToken;
-    private String message;
 
     @BeforeEach
     void setup() {
         httpHeaders = new HttpHeaders();
         httpHeaders.set(HttpHeaders.USER_AGENT, "MockMvc");
         httpHeaders.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
-        bisqV1DeviceToken = "655f4d327849323153616543657774544c48365a504f3a41504139316247646a4d645034757a5f5954444a72482d" +
-                "576c74584b6c4171594d665348434b2d7443522d646153786e5477754b445a4978785f4b7a64656d41483268794b547462" +
-                "37756d776c35544d48414d4c4f44357753336241454b4761713468574d75723538326a31743570336c79476f305a30394d" +
-                "4e53466d784d566a32465a4b366f507674534e";
-        bisqV2ApnsToken = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
-        bisqV2FcmToken = "e_M2xI21SaeCewtTLH6ZPO:APA91bGdjMdP4uz_YTDJrH-WltXKlAqYMfSHCK-tCR-daSxnTwuKDZIxx";
-        message = Hex.encodeHexString("Some Message".getBytes(StandardCharsets.UTF_8));
     }
 
-    @Test
-    void whenRelayingNotificationWithNoParameters_thenBadRequestResponseReturned() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/relay")
-                        .headers(httpHeaders))
-                .andExpect(status().isBadRequest())
-                .andExpect(result -> assertEquals(MediaType.APPLICATION_JSON_VALUE, result.getResponse().getContentType()))
-                .andExpect(result -> assertInstanceOf(BadArgumentsException.class, result.getResolvedException()))
-                .andExpect(result -> assertEquals("Missing token parameter", result.getResolvedException().getMessage()));
+    // ----------------------------
+    // Parameter validation tests
+    // ----------------------------
+
+    private static Stream<Arguments> invalidRequests() {
+        return Stream.of(
+                Arguments.of(MockMvcRequestBuilders.get("/relay"),
+                        "Missing token parameter"),
+                Arguments.of(MockMvcRequestBuilders.get("/relay")
+                                .param("msg", HEX_ENCODED_MSG),
+                        "Missing token parameter"),
+                Arguments.of(MockMvcRequestBuilders.get("/relay")
+                                .param("token", BISQ_V1_DEVICE_TOKEN),
+                        "Missing msg parameter"),
+                Arguments.of(MockMvcRequestBuilders.get("/relay")
+                                .param("token", BISQ_V2_APNS_TOKEN)
+                                .param("msg", "Not a hex message"),
+                        "Invalid msg parameter value"),
+                Arguments.of(MockMvcRequestBuilders.get("/relay")
+                                .param("token", BISQ_V2_FCM_TOKEN)
+                                .param("msg", Hex.encodeHexString("".getBytes(StandardCharsets.UTF_8))),
+                        "Missing msg parameter"),
+                Arguments.of(MockMvcRequestBuilders.get("/relay")
+                                .param("token", BISQ_V1_DEVICE_TOKEN)
+                                .param("msg", Hex.encodeHexString(" ".getBytes(StandardCharsets.UTF_8))),
+                        "Invalid msg parameter value")
+        );
     }
 
-    @Test
-    void whenRelayingNotificationWithMissingTokenParameter_thenBadRequestResponseReturned() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/relay")
-                        .param("msg", message)
-                        .headers(httpHeaders))
-                .andExpect(status().isBadRequest())
-                .andExpect(result -> assertEquals(MediaType.APPLICATION_JSON_VALUE, result.getResponse().getContentType()))
-                .andExpect(result -> assertInstanceOf(BadArgumentsException.class, result.getResolvedException()))
-                .andExpect(result -> assertEquals("Missing token parameter", result.getResolvedException().getMessage()));
+    @ParameterizedTest(name = "{index} => {1}")
+    @MethodSource("invalidRequests")
+    void whenRelayingNotificationWithMissingOrInvalidParameters_thenBadRequestResponseReturned(
+            RequestBuilder requestBuilder,
+            String expectedMessage
+    ) throws Exception {
+        expectBadRequestBadArguments(
+                mockMvc.perform(((MockHttpServletRequestBuilder) requestBuilder)
+                        .headers(httpHeaders)),
+                expectedMessage
+        );
+
+        verifyNoInteractions(apnsSender);
+        verifyNoInteractions(fcmSender);
     }
 
-    @Test
-    void whenRelayingNotificationWithMissingMessageParameter_thenBadRequestResponseReturned() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/relay")
-                        .param("token", bisqV1DeviceToken)
-                        .headers(httpHeaders))
-                .andExpect(status().isBadRequest())
-                .andExpect(result -> assertEquals(MediaType.APPLICATION_JSON_VALUE, result.getResponse().getContentType()))
-                .andExpect(result -> assertInstanceOf(BadArgumentsException.class, result.getResolvedException()))
-                .andExpect(result -> assertEquals("Missing msg parameter", result.getResolvedException().getMessage()));
+    // ----------------------------
+    // APNs/FCM relay behavior tests
+    // ----------------------------
+
+    private enum Provider {
+        APNS(false, "{\"wasAccepted\":false,\"errorCode\":\"Unregistered\",\"isUnregistered\":true}"),
+        FCM(true, "{\"wasAccepted\":false,\"errorCode\":\"UNREGISTERED\",\"isUnregistered\":true}");
+
+        final boolean isAndroid;
+        final String expectedErrorBodyJson;
+
+        Provider(boolean isAndroid, String expectedErrorBodyJson) {
+            this.isAndroid = isAndroid;
+            this.expectedErrorBodyJson = expectedErrorBodyJson;
+        }
     }
 
-    @Test
-    void whenRelayingNotificationWithInvalidMessageValue_thenBadRequestResponseReturned() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/relay")
-                        .param("msg", "invalidMessage")
-                        .param("token", bisqV1DeviceToken)
-                        .headers(httpHeaders))
-                .andExpect(status().isBadRequest())
-                .andExpect(result -> assertEquals(MediaType.APPLICATION_JSON_VALUE, result.getResponse().getContentType()))
-                .andExpect(result -> assertInstanceOf(BadArgumentsException.class, result.getResolvedException()))
-                .andExpect(result -> assertEquals("Invalid msg parameter value", result.getResolvedException().getMessage()));
+    static Stream<Arguments> providerAndToken() {
+        return Stream.of(
+                Arguments.of(Provider.APNS, BISQ_V1_DEVICE_TOKEN),
+                Arguments.of(Provider.FCM, BISQ_V1_DEVICE_TOKEN),
+                Arguments.of(Provider.APNS, BISQ_V2_APNS_TOKEN),
+                Arguments.of(Provider.FCM, BISQ_V2_FCM_TOKEN)
+        );
     }
 
-    @Test
-    void whenRelayingValidApnsNotificationWithBisqV1Token_thenSuccessfulResponseReturned() throws Exception {
-        givenApnsNotificationWillBeAccepted();
+    @ParameterizedTest(name = "{index} => {0} success")
+    @MethodSource("providerAndToken")
+    void whenRelayingValidNotification_thenSuccessfulResponseReturned(Provider provider, String deviceToken) throws Exception {
+        givenNotificationWillBeAccepted(provider);
 
-        RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/relay")
-                .param("isAndroid", String.valueOf(false))
-                .param("msg", message)
-                .param("token", bisqV1DeviceToken)
-                .headers(httpHeaders);
-        MvcResult mvcResult = mockMvc.perform(requestBuilder)
-                .andExpect(request().asyncStarted())
-                .andReturn();
-        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
-                .andReturn();
+        MvcResult asyncResult = performAsyncRelay(provider.isAndroid, deviceToken);
+
         assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
         assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
         assertThat(asyncResult.getResponse().getContentAsString()).isEqualTo("success");
     }
 
-    @Test
-    void whenRelayingValidApnsNotificationWithBisqV2Token_thenSuccessfulResponseReturned() throws Exception {
-        givenApnsNotificationWillBeAccepted();
+    @ParameterizedTest(name = "{index} => {0} rejected")
+    @MethodSource("providerAndToken")
+    void whenSendingInvalidNotification_thenBadRequestResponseReturned(Provider provider, String deviceToken) throws Exception {
+        givenNotificationWillBeRejected(provider);
 
-        RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/relay")
-                .param("isAndroid", String.valueOf(false))
-                .param("msg", message)
-                .param("token", bisqV2ApnsToken)
-                .headers(httpHeaders);
-        MvcResult mvcResult = mockMvc.perform(requestBuilder)
-                .andExpect(request().asyncStarted())
-                .andReturn();
-        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
-                .andReturn();
-        assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
-        assertThat(asyncResult.getResponse().getContentAsString()).isEqualTo("success");
-    }
+        MvcResult asyncResult = performAsyncRelay(provider.isAndroid, deviceToken);
 
-    @Test
-    void whenRelayingValidFcmNotificationWithBisqV1Token_thenSuccessfulResponseReturned() throws Exception {
-        givenFcmNotificationWillBeAccepted();
-
-        RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/relay")
-                .param("isAndroid", String.valueOf(true))
-                .param("msg", message)
-                .param("token", bisqV1DeviceToken)
-                .headers(httpHeaders);
-        MvcResult mvcResult = mockMvc.perform(requestBuilder)
-                .andExpect(request().asyncStarted())
-                .andReturn();
-        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
-                .andReturn();
-        assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
-        assertThat(asyncResult.getResponse().getContentAsString()).isEqualTo("success");
-    }
-
-    @Test
-    void whenRelayingValidFcmNotificationWithBisqV2Token_thenSuccessfulResponseReturned() throws Exception {
-        givenFcmNotificationWillBeAccepted();
-
-        RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/relay")
-                .param("isAndroid", String.valueOf(true))
-                .param("msg", message)
-                .param("token", bisqV2FcmToken)
-                .headers(httpHeaders);
-        MvcResult mvcResult = mockMvc.perform(requestBuilder)
-                .andExpect(request().asyncStarted())
-                .andReturn();
-        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
-                .andReturn();
-        assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
-        assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
-        assertThat(asyncResult.getResponse().getContentAsString()).isEqualTo("success");
-    }
-
-    @Test
-    void whenSendInvalidApnsNotification_thenBadRequestResponseReturned() throws Exception {
-        givenApnsNotificationWillBeRejected();
-
-        RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .get("/relay")
-                .param("isAndroid", String.valueOf(false))
-                .param("msg", message)
-                .param("token", bisqV2ApnsToken)
-                .headers(httpHeaders);
-        MvcResult mvcResult = mockMvc.perform(requestBuilder)
-                .andExpect(request().asyncStarted())
-                .andReturn();
-        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
-                .andReturn();
         assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
         assertThat(asyncResult.getResolvedException()).isInstanceOf(BadArgumentsException.class);
-        assertThat(asyncResult.getResolvedException().getMessage()).isEqualTo("{\"wasAccepted\":false,\"errorCode\":\"Unregistered\",\"isUnregistered\":true}");
+        assertThat(Objects.requireNonNull(asyncResult.getResolvedException()).getMessage())
+                .isEqualTo(provider.expectedErrorBodyJson);
     }
 
-    @Test
-    void whenSendInvalidFcmNotification_thenBadRequestResponseReturned() throws Exception {
-        givenFcmNotificationWillBeRejected();
+    // ----------------------------
+    // Helpers
+    // ----------------------------
 
+    private void expectBadRequestBadArguments(ResultActions actions, String expectedMessage) throws Exception {
+        actions.andExpect(status().isBadRequest())
+                .andExpect(result ->
+                        assertEquals(MediaType.APPLICATION_JSON_VALUE, result.getResponse().getContentType()))
+                .andExpect(result ->
+                        assertInstanceOf(BadArgumentsException.class, result.getResolvedException()))
+                .andExpect(result ->
+                        assertEquals(expectedMessage,
+                                Objects.requireNonNull(result.getResolvedException()).getMessage()));
+    }
+
+    private MvcResult performAsyncRelay(boolean isAndroid, String deviceToken) throws Exception {
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .get("/relay")
-                .param("isAndroid", String.valueOf(true))
-                .param("msg", message)
-                .param("token", bisqV1DeviceToken)
+                .param("isAndroid", String.valueOf(isAndroid))
+                .param("msg", HEX_ENCODED_MSG)
+                .param("token", deviceToken)
                 .headers(httpHeaders);
+
         MvcResult mvcResult = mockMvc.perform(requestBuilder)
                 .andExpect(request().asyncStarted())
                 .andReturn();
-        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
-                .andReturn();
-        assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
-        assertThat(asyncResult.getResolvedException()).isInstanceOf(BadArgumentsException.class);
-        assertThat(asyncResult.getResolvedException().getMessage()).isEqualTo("{\"wasAccepted\":false,\"errorCode\":\"UNREGISTERED\",\"isUnregistered\":true}");
+
+        return mockMvc.perform(asyncDispatch(mvcResult)).andReturn();
     }
 
-    private void givenApnsNotificationWillBeAccepted() {
+    private void givenNotificationWillBeAccepted(Provider provider) {
         CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
         completableFuture.complete(new PushNotificationResult(true, null, null, false));
-        when(apnsSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
-                .thenReturn(completableFuture);
+
+        if (provider == Provider.APNS) {
+            when(apnsSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
+                    .thenReturn(completableFuture);
+        } else {
+            when(fcmSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
+                    .thenReturn(completableFuture);
+        }
     }
 
-    private void givenApnsNotificationWillBeRejected() {
+    private void givenNotificationWillBeRejected(Provider provider) {
         CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(new PushNotificationResult(false, "Unregistered", null, true));
-        when(apnsSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
-                .thenReturn(completableFuture);
-    }
-
-    private void givenFcmNotificationWillBeAccepted() {
-        CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(new PushNotificationResult(true, null, null, false));
-        when(fcmSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
-                .thenReturn(completableFuture);
-    }
-
-    private void givenFcmNotificationWillBeRejected() {
-        CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(new PushNotificationResult(false, "UNREGISTERED", null, true));
-        when(fcmSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
-                .thenReturn(completableFuture);
+        if (provider == Provider.APNS) {
+            completableFuture.complete(
+                    new PushNotificationResult(false, "Unregistered", null, true));
+            when(apnsSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
+                    .thenReturn(completableFuture);
+        } else {
+            completableFuture.complete(
+                    new PushNotificationResult(false, "UNREGISTERED", null, true));
+            when(fcmSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
+                    .thenReturn(completableFuture);
+        }
     }
 }
