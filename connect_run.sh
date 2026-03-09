@@ -2,6 +2,8 @@
 
 ./gradlew clean build --info
 
+# SANDBOX
+# export BISQ_RELAY_APNS_BUNDLE_ID="network.bisq.mobile.ios"
 export BISQ_RELAY_APNS_BUNDLE_ID="bisq.mobile.client.BisqConnect"
 export BISQ_RELAY_APNS_CERTIFICATE_FILE="apnsCertificate.production.p12"
 export BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE="apnsCertificatePassword.txt"
