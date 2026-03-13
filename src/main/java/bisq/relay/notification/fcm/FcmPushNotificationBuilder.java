@@ -24,12 +24,14 @@ import com.google.firebase.messaging.Notification;
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Objects;
 
 @Component
+@ConditionalOnProperty(name = "fcm.enabled", havingValue = "true", matchIfMissing = false)
 public class FcmPushNotificationBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(FcmPushNotificationBuilder.class);
     // The maximum time-to-live duration of an Android message is 4 weeks
@@ -58,12 +60,6 @@ public class FcmPushNotificationBuilder {
 
         AndroidConfig androidConfig = getAndroidConfig(pushNotificationMessage);
 
-        // TODO send data-only messages (i.e. remove setNotification).
-        //  This will allow the app to process/decrypt background messages as they are received,
-        //  rather than only when clicked on.
-        //  Wait until an updated version of the app has been released that supports data-only messages
-        //  and installed by a majority of users.
-        //  Ref: https://firebase.google.com/docs/cloud-messaging/android/receive
         return Message.builder()
                 .setAndroidConfig(androidConfig)
                 .setNotification(Notification.builder()

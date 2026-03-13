@@ -57,7 +57,7 @@ public class RelayController {
     @Autowired
     public RelayController(
             final ApnsPushNotificationController apnsPushNotificationController,
-            final FcmPushNotificationController fcmPushNotificationController) {
+            @Autowired(required = false) final FcmPushNotificationController fcmPushNotificationController) {
         this.apnsPushNotificationController = apnsPushNotificationController;
         this.fcmPushNotificationController = fcmPushNotificationController;
     }
@@ -76,13 +76,16 @@ public class RelayController {
                     maskSensitive(encryptedMessageHex.orElse(null)));
         }
 
-        final String deviceToken = decodeParameter(deviceTokenHex, "token");
+        final String deviceToken = decodeDeviceToken(deviceTokenHex);
         final String encryptedMessage = decodeParameter(encryptedMessageHex, "msg");
 
         final PushNotificationMessage pushNotificationMessage = new PushNotificationMessage(
                 encryptedMessage, true);
 
         if (isAndroid.isPresent() && isAndroid.get().equals(true)) {
+            if (fcmPushNotificationController == null) {
+                throw new BadArgumentsException("FCM is not enabled on this server");
+            }
             return fcmPushNotificationController.sendFcmNotification(
                     deviceToken, pushNotificationMessage, httpRequest).thenApply(result -> {
                 if (result.getStatusCode().equals(HttpStatus.OK)) {
@@ -99,6 +102,47 @@ public class RelayController {
                 throw new BadArgumentsException(result.getBody());
             });
         }
+    }
+
+    /**
+     * Extracts the device token, handling both Bisq v1 and Bisq2 formats.
+     *
+     * Bisq v1 hex-encodes all parameters (including the token) before sending.
+     * Bisq2 sends the device token as-is (a hex string for APNs, or an opaque
+     * string for FCM).
+     *
+     * To distinguish: we try hex-decoding the input. If the result is entirely
+     * printable ASCII, it was hex-encoded (Bisq v1) and we return the decoded
+     * value. If hex-decoding fails or produces non-printable bytes, the input
+     * is already the raw token (Bisq2) and we pass it through unchanged.
+     */
+    private String decodeDeviceToken(final Optional<String> deviceTokenHex) {
+        if (deviceTokenHex.isEmpty()) {
+            LOG.error("Missing token parameter");
+            throw new BadArgumentsException("Missing token parameter");
+        }
+        final String raw = deviceTokenHex.get();
+        try {
+            final String decoded = new String(Hex.decodeHex(raw.toCharArray()), StandardCharsets.UTF_8);
+            if (isPrintableAscii(decoded)) {
+                LOG.debug("Device token appears hex-encoded (Bisq v1 format), decoded to {} chars", decoded.length());
+                return decoded;
+            }
+        } catch (DecoderException e) {
+            // Not valid hex — fall through to use raw value
+        }
+        LOG.debug("Device token used as-is (Bisq2 format), {} chars", raw.length());
+        return raw;
+    }
+
+    private static boolean isPrintableAscii(final String s) {
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c < 0x20 || c > 0x7E) {
+                return false;
+            }
+        }
+        return !s.isEmpty();
     }
 
     private String decodeParameter(final Optional<String> parameterHexValue, final String parameterName) {
