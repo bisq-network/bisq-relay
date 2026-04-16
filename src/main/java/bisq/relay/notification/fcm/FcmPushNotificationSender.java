@@ -18,13 +18,14 @@
 package bisq.relay.notification.fcm;
 
 import bisq.relay.config.FcmProperties;
+import bisq.relay.exception.ProviderFailureException;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
 import bisq.relay.notification.PushNotificationSender;
 import bisq.relay.notification.metrics.PushProvider;
+import bisq.relay.notification.resilience.ResilienceAsyncExecutor;
+import bisq.relay.util.FutureCancellationBridge;
 import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutureCallback;
-import com.google.api.core.ApiFutures;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -47,7 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.CompletionStage;
 
 import static bisq.relay.notification.metrics.PushMetrics.PROVIDER_ID_FCM;
 
@@ -57,17 +58,19 @@ import static bisq.relay.notification.metrics.PushMetrics.PROVIDER_ID_FCM;
 public class FcmPushNotificationSender implements PushNotificationSender {
     private static final Logger LOG = LoggerFactory.getLogger(FcmPushNotificationSender.class);
 
-    private final Executor executor;
     private final FirebaseMessaging firebaseMessaging;
     private final FcmPushNotificationBuilder fcmPushNotificationBuilder;
+    private final ResilienceAsyncExecutor resilienceAsyncExecutor;
 
     @Autowired
     public FcmPushNotificationSender(
             final FcmProperties fcmProperties,
-            final FcmPushNotificationBuilder fcmPushNotificationBuilder) throws IOException {
-        this.fcmPushNotificationBuilder = fcmPushNotificationBuilder;
+            final FcmPushNotificationBuilder fcmPushNotificationBuilder,
+            final ResilienceAsyncExecutor resilienceAsyncExecutor
+    ) throws IOException {
 
-        this.executor = MoreExecutors.directExecutor();
+        this.fcmPushNotificationBuilder = fcmPushNotificationBuilder;
+        this.resilienceAsyncExecutor = resilienceAsyncExecutor;
 
         try (InputStream firebaseConfigStream = new FileInputStream(fcmProperties.getFirebaseConfigurationFile())) {
             GoogleCredentials googleCredentials = GoogleCredentials.fromStream(firebaseConfigStream);
@@ -88,10 +91,11 @@ public class FcmPushNotificationSender implements PushNotificationSender {
     @VisibleForTesting
     FcmPushNotificationSender(
             final FirebaseMessaging firebaseMessaging,
-            final FcmPushNotificationBuilder fcmPushNotificationBuilder) {
+            final FcmPushNotificationBuilder fcmPushNotificationBuilder,
+            final ResilienceAsyncExecutor resilienceAsyncExecutor) {
         this.firebaseMessaging = firebaseMessaging;
         this.fcmPushNotificationBuilder = fcmPushNotificationBuilder;
-        this.executor = MoreExecutors.directExecutor();
+        this.resilienceAsyncExecutor = resilienceAsyncExecutor;
     }
 
     @PreDestroy
@@ -102,50 +106,188 @@ public class FcmPushNotificationSender implements PushNotificationSender {
         }
     }
 
-    // TODO implement circuit breaker, can use resilience4j
-    //  Ref: https://www.baeldung.com/spring-boot-resilience4j
+    /**
+     * Sends a push notification to FCM under Resilience4j CircuitBreaker/Retry/TimeLimiter policies defined in
+     * the application properties keyed by {@value bisq.relay.notification.metrics.PushMetrics#PROVIDER_ID_FCM}.
+     * <p>
+     * Token/payload rejections (client failures) return a normal {@link PushNotificationResult}.
+     * Provider throttling/outage responses complete exceptionally to affect the circuit breaker.
+     *
+     * @param pushNotificationMessage encrypted payload and metadata
+     * @param deviceToken             FCM device token
+     * @return future completing with success/rejection result, or fallback result when unavailable
+     */
     @Override
     public CompletableFuture<PushNotificationResult> sendNotification(
             @Nonnull final PushNotificationMessage pushNotificationMessage,
-            @Nonnull final String deviceToken) {
-        Objects.requireNonNull(pushNotificationMessage);
-        Objects.requireNonNull(deviceToken);
+            @Nonnull final String deviceToken
+    ) {
+        Objects.requireNonNull(pushNotificationMessage, "pushNotificationMessage must not be null");
+        Objects.requireNonNull(deviceToken, "deviceToken must not be null");
 
+        return resilienceAsyncExecutor.execute(
+                PROVIDER_ID_FCM,
+                () -> doSend(pushNotificationMessage, deviceToken),
+                ex -> sendNotificationFallback(deviceToken, ex)
+        );
+    }
+
+    /**
+     * Performs the outbound FCM call and returns a stage completing with the result.
+     * <p>
+     * Important: Outbound side effects occur inside this method, which shall only be invoked
+     * if the circuit breaker permits execution.
+     * <p>
+     * Cancellation bridging: if the returned future is cancelled (e.g., by {@code TimeLimiter}),
+     * the underlying provider future is also cancelled to reduce wasted work.
+     */
+    private CompletionStage<PushNotificationResult> doSend(
+            @Nonnull final PushNotificationMessage pushNotificationMessage,
+            @Nonnull final String deviceToken
+    ) {
         final Message message = fcmPushNotificationBuilder.buildMessage(
-                pushNotificationMessage, deviceToken, pushNotificationMessage.coalescingKey());
+                pushNotificationMessage,
+                deviceToken,
+                pushNotificationMessage.coalescingKey()
+        );
 
-        final CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
+        final ApiFuture<String> providerFuture = firebaseMessaging.sendAsync(message);
 
-        final ApiFuture<String> apiFuture = firebaseMessaging.sendAsync(message);
+        final CompletableFuture<PushNotificationResult> resultFuture = new CompletableFuture<>();
 
-        ApiFutures.addCallback(apiFuture, new ApiFutureCallback<>() {
-            @Override
-            public void onSuccess(final String result) {
-                LOG.info("Push notification accepted by FCM gateway; messageId={}", result);
-                completableFuture.complete(new PushNotificationResult(true, null, null, false));
+        FutureCancellationBridge.bridgeCancellation(resultFuture, providerFuture);
+
+        providerFuture.addListener(() -> {
+                    // If already timed out or cancelled, ignore late results
+                    if (resultFuture.isDone()) {
+                        return;
+                    }
+
+                    try {
+                        resultFuture.complete(mapFcmOutcome(providerFuture));
+                    } catch (Exception t) {
+                        resultFuture.completeExceptionally(t);
+                    }
+                },
+
+                // The listener may run inline on the calling thread if already complete,
+                // otherwise on the provider's completion thread. Keep the listener non-blocking/lightweight
+                // since it can execute on Firebase/Google API internal threads.
+                MoreExecutors.directExecutor()
+        );
+
+        return resultFuture;
+    }
+
+    /**
+     * Maps the outcome of an FCM send attempt into a {@link PushNotificationResult} or an exception.
+     *
+     * @param providerFuture the FCM provider future representing an in-flight send operation
+     * @return a normalized push notification result for accepted or non-breaker-relevant rejections
+     * <ul>
+     *   <li>Returns an accepted result when FCM returns a message id.</li>
+     *   <li>Returns a rejected result for client rejections (e.g., invalid/unregistered token) that
+     *   should not affect the circuit breaker.</li>
+     * </ul>
+     * @throws IOException              for transport-level failures (e.g., no response received)
+     * @throws ProviderFailureException for breaker-relevant provider failures (throttling/outage/server errors)
+     *                                  so resilience policies can record the call as failed.
+     */
+    private PushNotificationResult mapFcmOutcome(@Nonnull final ApiFuture<String> providerFuture)
+            throws IOException, ProviderFailureException {
+
+        try {
+            final String messageId = providerFuture.get();
+            LOG.info("Push notification accepted by FCM gateway; messageId={}", messageId);
+            return new PushNotificationResult(true, null, null, false);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            LOG.warn("FCM send was interrupted");
+            throw new IOException("FCM send was interrupted", ie);
+        } catch (Exception e) {
+            final Throwable cause = e.getCause() != null ? e.getCause() : e;
+
+            final PushNotificationResult mapped = tryMapFirebaseMessagingException(cause);
+            if (mapped != null) {
+                return mapped;
             }
 
-            @Override
-            public void onFailure(final Throwable cause) {
-                if (cause instanceof final FirebaseMessagingException firebaseMessagingException &&
-                        firebaseMessagingException.getMessagingErrorCode() != null) {
-                    final String errorCode = firebaseMessagingException.getMessagingErrorCode().name();
-                    final String errorMessage = firebaseMessagingException.getMessage();
-                    LOG.error("Push notification rejected by FCM gateway; [{}] {}", errorCode,
-                            errorMessage == null ? "" : errorMessage);
-                    completableFuture.complete(new PushNotificationResult(false, errorCode, errorMessage,
-                            firebaseMessagingException.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED));
-                } else {
-                    // Something went wrong when trying to send the notification to the
-                    // FCM server. Note that this is distinct from a rejection from
-                    // the server, and indicates that something went wrong when actually
-                    // sending the notification or waiting for a reply.
-                    LOG.error("Failed to send notification to FCM gateway; {}", cause.getMessage());
-                    completableFuture.completeExceptionally(cause);
-                }
-            }
-        }, executor);
+            LOG.error("Failed to send notification to FCM gateway; {}", cause.getMessage());
+            // Preserve the original IOException subtype (e.g., SocketTimeoutException)
+            // and avoid double wrapping; otherwise normalize to IOException.
+            throw (cause instanceof IOException io) ? io : new IOException("FCM transport error", cause);
+        }
+    }
 
-        return completableFuture;
+    /**
+     * @return the mapped result if this is a FirebaseMessagingException with a MessagingErrorCode;
+     * otherwise {@code null} to signal "not handled here".
+     */
+    private PushNotificationResult tryMapFirebaseMessagingException(@Nonnull final Throwable cause)
+            throws ProviderFailureException {
+
+        if (!(cause instanceof FirebaseMessagingException fme)) {
+            return null;
+        }
+
+        final MessagingErrorCode messagingErrorCode = fme.getMessagingErrorCode();
+        if (messagingErrorCode == null) {
+            return null;
+        }
+
+        final String errorCode = messagingErrorCode.name();
+        final String errorMessage = fme.getMessage();
+
+        LOG.error("Push notification rejected by FCM gateway; [{}] {}",
+                errorCode, errorMessage == null ? "" : errorMessage);
+
+        if (isBreakerRelevantFcmError(messagingErrorCode)) {
+            throw new ProviderFailureException("FCM provider outage/throttle: " + errorCode, cause);
+        }
+
+        return new PushNotificationResult(
+                false,
+                errorCode,
+                errorMessage,
+                messagingErrorCode == MessagingErrorCode.UNREGISTERED
+        );
+    }
+
+    /**
+     * Returns {@code true} if the FCM error should count as a provider failure (breaker-relevant).
+     * <p>
+     * <b>Breaker-relevant:</b> throttling and provider server errors should count as failures.
+     * <br />
+     * <b>Breaker-irrelevant:</b> token/payload/auth/other client rejections should NOT poison the breaker.
+     *
+     * @param errorCode FCM messaging error code
+     * @return {@code true} if breaker should treat as failure
+     */
+    private static boolean isBreakerRelevantFcmError(@Nonnull final MessagingErrorCode errorCode) {
+        return switch (errorCode) {
+            case QUOTA_EXCEEDED, UNAVAILABLE, INTERNAL -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Fallback used when the circuit breaker is OPEN, or timeouts/retries are exhausted.
+     *
+     * @param deviceToken original device token
+     * @param ex          cause (e.g., CallNotPermittedException, TimeoutException, etc.)
+     * @return completed future with a service-unavailable result
+     */
+    private CompletableFuture<PushNotificationResult> sendNotificationFallback(
+            @Nonnull final String deviceToken,
+            @Nonnull final Throwable ex) {
+
+        LOG.warn("FCM fallback triggered for token [{}]", deviceToken, ex);
+
+        return CompletableFuture.completedFuture(new PushNotificationResult(
+                false,
+                "ServiceUnavailable",
+                "Push provider temporarily unavailable (FCM): " + ex.getMessage(),
+                false
+        ));
     }
 }

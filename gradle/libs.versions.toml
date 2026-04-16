@@ -10,6 +10,7 @@ gradle-git-properties-plugin = { strictly = '2.5.4' }
 junit-jupiter-lib = { strictly = '5.14.2' }
 logback-lib = { strictly = '1.5.26' }
 pushy-lib = { strictly = '0.15.4' }
+resilience4j-lib = { strictly = '2.3.0' }
 slf4j-lib = { strictly = '2.0.17' }
 spring-boot-lib = { strictly = '3.5.13' }
 shadow-plugin = { strictly = '9.4.1' }
@@ -27,8 +28,11 @@ logback-classic = { module = 'ch.qos.logback:logback-classic', version.ref = 'lo
 logback-core = { module = 'ch.qos.logback:logback-core', version.ref = 'logback-lib' }
 micrometer-registry-prometheus = { module = 'io.micrometer:micrometer-registry-prometheus' }
 pushy = { module = 'com.eatthepath:pushy', version.ref = 'pushy-lib' }
+resilience4j-micrometer = { module = 'io.github.resilience4j:resilience4j-micrometer', version.ref = 'resilience4j-lib' }
+resilience4j-spring-boot = { module = 'io.github.resilience4j:resilience4j-spring-boot3', version.ref = 'resilience4j-lib' }
 slf4j-api = { module = 'org.slf4j:slf4j-api', version.ref = 'slf4j-lib' }
 spring-boot-actuator = { module = 'org.springframework.boot:spring-boot-starter-actuator', version.ref = 'spring-boot-lib' }
+spring-boot-aop = { module = 'org.springframework.boot:spring-boot-starter-aop', version.ref = 'spring-boot-lib' }
 spring-boot-dependencies = { module = 'org.springframework.boot:spring-boot-dependencies', version.ref = 'spring-boot-lib' }
 spring-boot-test = { module = 'org.springframework.boot:spring-boot-starter-test', version.ref = 'spring-boot-lib' }
 spring-boot-validation = { module = 'org.springframework.boot:spring-boot-starter-validation', version.ref = 'spring-boot-lib' }

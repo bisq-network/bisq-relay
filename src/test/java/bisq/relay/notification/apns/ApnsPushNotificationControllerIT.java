@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
@@ -92,6 +93,48 @@ class ApnsPushNotificationControllerIT {
         MvcResult result = mockMvc.perform(requestBuilder).andReturn();
         assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+    }
+
+    @Test
+    void whenSendApnsNotificationWithMissingEncrypted_thenBadRequestResponseReturned() throws Exception {
+        String bodyMissingEncrypted = """
+                {"isUrgent":true}
+                """;
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyMissingEncrypted);
+
+        MvcResult result = mockMvc.perform(requestBuilder).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+
+        verifyNoInteractions(apnsSender);
+    }
+
+    @Test
+    void whenSendApnsNotificationWithBlankEncrypted_thenBadRequestResponseReturned() throws Exception {
+        String bodyBlankEncrypted = """
+                {"encrypted":"","isUrgent":true}
+                """;
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyBlankEncrypted);
+
+        MvcResult result = mockMvc.perform(requestBuilder).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+
+        verifyNoInteractions(apnsSender);
     }
 
     @Test
@@ -202,7 +245,8 @@ class ApnsPushNotificationControllerIT {
     void whenJsonProcessingExceptionWithPushNotificationResult_thenServerErrorResponseReturned() throws Exception {
         givenApnsNotificationWillBeAccepted();
 
-        when(objectMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("JsonProcessingException") {});
+        when(objectMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("JsonProcessingException") {
+        });
 
         ObjectMapper mapper = new ObjectMapper();
         String serializedNotificationRequest = mapper.writeValueAsString(

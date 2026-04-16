@@ -20,6 +20,7 @@ package bisq.relay.notification.fcm;
 import bisq.relay.config.FcmProperties;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
+import bisq.relay.notification.resilience.ResilienceAsyncExecutor;
 import com.google.api.core.SettableApiFuture;
 import com.google.firebase.messaging.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -55,11 +58,24 @@ class FcmPushNotificationSenderTest {
     private FirebaseMessaging firebaseMessaging;
     private FcmPushNotificationSender fcmSender;
 
+    @Mock
+    private ResilienceAsyncExecutor resilienceAsyncExecutor;
+
     private PushNotificationResult pushNotificationResult;
     private Message sentPushNotification;
 
     @BeforeEach
     void setup() {
+        when(resilienceAsyncExecutor.execute(any(), any(), any()))
+                .thenAnswer(inv -> {
+                    Supplier<? extends CompletionStage<PushNotificationResult>> supplier =
+                            inv.getArgument(1);
+                    return supplier.get().toCompletableFuture();
+                });
+
+        fcmSender = new FcmPushNotificationSender(
+                firebaseMessaging, new FcmPushNotificationBuilder(new FcmProperties()), resilienceAsyncExecutor);
+
         givenSendDataOnlyIs(true);
     }
 
@@ -135,7 +151,7 @@ class FcmPushNotificationSenderTest {
         FcmProperties properties = new FcmProperties();
         properties.setSendDataOnly(sendDataOnly);
         FcmPushNotificationBuilder fcmPushNotificationBuilder = new FcmPushNotificationBuilder(properties);
-        fcmSender = new FcmPushNotificationSender(firebaseMessaging, fcmPushNotificationBuilder);
+        fcmSender = new FcmPushNotificationSender(firebaseMessaging, fcmPushNotificationBuilder, resilienceAsyncExecutor);
     }
 
     private void whenSendingAPushNotification(final boolean urgent) {
@@ -149,6 +165,7 @@ class FcmPushNotificationSenderTest {
 
     private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent)
             throws NoSuchFieldException, IllegalAccessException {
+
         thenTheSentPushNotificationIsCorrectlyPopulated(urgent, true);
     }
 

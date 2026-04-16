@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
@@ -91,6 +92,46 @@ class FcmPushNotificationControllerIT {
         MvcResult result = mockMvc.perform(requestBuilder).andReturn();
         assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+    }
+
+    @Test
+    void whenSendFcmNotificationWithMissingEncrypted_thenBadRequestResponseReturned() throws Exception {
+        String bodyMissingEncrypted = """
+                {"isUrgent":true}
+                """;
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/fcm/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyMissingEncrypted);
+
+        MvcResult result = mockMvc.perform(requestBuilder).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+
+        verifyNoInteractions(fcmSender);
+    }
+
+    @Test
+    void whenSendFcmNotificationWithBlankEncrypted_thenBadRequestResponseReturned() throws Exception {
+        String bodyBlankEncrypted = """
+                {"encrypted":"","isUrgent":true}
+                """;
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/fcm/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyBlankEncrypted);
+
+        MvcResult result = mockMvc.perform(requestBuilder).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+
+        verifyNoInteractions(fcmSender);
     }
 
     @Test
@@ -175,7 +216,8 @@ class FcmPushNotificationControllerIT {
     void whenJsonProcessingExceptionWithPushNotificationResult_thenServerErrorResponseReturned() throws Exception {
         givenFcmNotificationWillBeAccepted();
 
-        when(objectMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("JsonProcessingException") {});
+        when(objectMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("JsonProcessingException") {
+        });
 
         ObjectMapper mapper = new ObjectMapper();
         String serializedNotificationRequest = mapper.writeValueAsString(

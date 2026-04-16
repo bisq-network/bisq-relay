@@ -54,6 +54,11 @@ public final class PushMetrics {
      */
     public static final String METRIC_PUSH_LATENCY_SECONDS = "push_latency_seconds";
 
+    /**
+     * Counter for pushes that were short-circuited due to an OPEN circuit breaker.
+     */
+    public static final String METRIC_PUSH_SHORT_CIRCUITED_TOTAL = "push_short_circuited_total";
+
     // ========================================================================
     // Tag keys
     // ========================================================================
