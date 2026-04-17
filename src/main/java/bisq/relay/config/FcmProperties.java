@@ -29,6 +29,7 @@ import org.springframework.validation.annotation.Validated;
  *   <li>{@code BISQ_RELAY_FCM_ENABLED} - Whether FCM is enabled (default: false)</li>
  *   <li>{@code BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE} - Path to Firebase service account JSON file</li>
  *   <li>{@code BISQ_RELAY_FCM_FIREBASE_URL} - Firebase database URL</li>
+ *   <li>{@code BISQ_RELAY_FCM_DATA_ONLY} - Whether to send FCM data-only messages (default: false)</li>
  * </ul>
  */
 @Validated
@@ -55,6 +56,12 @@ public class FcmProperties {
     @NotBlank(message = "FCM Firebase URL must be configured. Set BISQ_RELAY_FCM_FIREBASE_URL environment variable.")
     private String firebaseUrl;
 
+    /**
+     * Whether to send FCM data-only messages.
+     * Default is {@code false} - must be explicitly enabled.
+     */
+    private boolean sendDataOnly = false;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -78,5 +85,12 @@ public class FcmProperties {
     public void setFirebaseUrl(String firebaseUrl) {
         this.firebaseUrl = firebaseUrl;
     }
-}
 
+    public boolean isSendDataOnly() {
+        return sendDataOnly;
+    }
+
+    public void setSendDataOnly(boolean sendDataOnly) {
+        this.sendDataOnly = sendDataOnly;
+    }
+}

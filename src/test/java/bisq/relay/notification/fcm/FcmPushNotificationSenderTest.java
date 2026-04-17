@@ -17,35 +17,41 @@
 
 package bisq.relay.notification.fcm;
 
+import bisq.relay.config.FcmProperties;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
 import com.google.api.core.SettableApiFuture;
 import com.google.firebase.messaging.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 /**
  * Unit test for FcmPushNotificationSender - uses mocks, no Spring context needed.
  */
+@ExtendWith(MockitoExtension.class)
 class FcmPushNotificationSenderTest {
     private static final String DEVICE_TOKEN =
             "d4HedtovQCyRdgPsxM0JbA:APA91bFJIwRdBpO4SQpeSuA5rpEnu5N3Y3_c1T5x69gpedyKwGLUrApT6xkwIq8LZVPCy" +
                     "KVi1nh5NdG37TN2nGhpqchOUCysHweuL8V023WJYVwGgpUvdkk5mkYD9D3_QFj2c7f_2ul6";
 
+    @Mock
     private FirebaseMessaging firebaseMessaging;
     private FcmPushNotificationSender fcmSender;
 
@@ -54,18 +60,19 @@ class FcmPushNotificationSenderTest {
 
     @BeforeEach
     void setup() {
-        firebaseMessaging = mock(FirebaseMessaging.class);
-        fcmSender = new FcmPushNotificationSender(firebaseMessaging, new FcmPushNotificationBuilder());
+        givenSendDataOnlyIs(true);
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void whenPushNotificationIsAcceptedByFcm_thenSuccessfulResultReturned(final boolean urgent)
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void whenPushNotificationIsAcceptedByFcm_thenSuccessfulResultReturned(
+            final boolean urgent, final boolean sendDataOnly)
             throws IllegalAccessException, NoSuchFieldException {
 
+        givenSendDataOnlyIs(sendDataOnly);
         givenFcmWillAcceptPushNotifications();
         whenSendingAPushNotification(urgent);
-        thenTheSentPushNotificationIsCorrectlyPopulated(urgent);
+        thenTheSentPushNotificationIsCorrectlyPopulated(urgent, sendDataOnly);
         thenThePushNotificationWasAccepted();
 
         verifyNoMoreInteractions(firebaseMessaging);
@@ -76,6 +83,7 @@ class FcmPushNotificationSenderTest {
     void whenPushNotificationIsRejectedByFcm_thenErrorResultReturned(
             final String rejectionReason, final boolean isUnregistered)
             throws NoSuchFieldException, IllegalAccessException {
+
         givenFcmWillRejectPushNotifications(rejectionReason);
         whenSendingAPushNotification(true);
         thenTheSentPushNotificationIsCorrectlyPopulated(true);
@@ -93,7 +101,7 @@ class FcmPushNotificationSenderTest {
         assertThat(thrown).isInstanceOf(CompletionException.class);
 
         verify(firebaseMessaging).sendAsync(any(Message.class));
-        assertTrue(thrown.getCause() instanceof IOException);
+        assertInstanceOf(IOException.class, thrown.getCause());
 
 
         verifyNoMoreInteractions(firebaseMessaging);
@@ -123,6 +131,13 @@ class FcmPushNotificationSenderTest {
         when(firebaseMessaging.sendAsync(isA(Message.class))).thenReturn(apiFuture);
     }
 
+    private void givenSendDataOnlyIs(final boolean sendDataOnly) {
+        FcmProperties properties = new FcmProperties();
+        properties.setSendDataOnly(sendDataOnly);
+        FcmPushNotificationBuilder fcmPushNotificationBuilder = new FcmPushNotificationBuilder(properties);
+        fcmSender = new FcmPushNotificationSender(firebaseMessaging, fcmPushNotificationBuilder);
+    }
+
     private void whenSendingAPushNotification(final boolean urgent) {
         PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent);
         pushNotificationResult = fcmSender.sendNotification(pushNotificationMessage, DEVICE_TOKEN).join();
@@ -134,6 +149,11 @@ class FcmPushNotificationSenderTest {
 
     private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent)
             throws NoSuchFieldException, IllegalAccessException {
+        thenTheSentPushNotificationIsCorrectlyPopulated(urgent, true);
+    }
+
+    private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent, final boolean sendDataOnly)
+            throws NoSuchFieldException, IllegalAccessException {
         assertThat(MessageUtil.getMessageToken(sentPushNotification)).isEqualTo(DEVICE_TOKEN);
         assertThat(MessageUtil.getMessageData(sentPushNotification)).isEqualTo(Map.of("encrypted", "foo"));
 
@@ -144,9 +164,14 @@ class FcmPushNotificationSenderTest {
                 urgent ? AndroidConfig.Priority.HIGH.name().toLowerCase() : AndroidConfig.Priority.NORMAL.name().toLowerCase());
 
         Notification notification = MessageUtil.getMessageNotification(sentPushNotification);
-        assertThat(NotificationUtil.getTitle(notification)).isEqualTo("You have received a Bisq notification");
-        assertThat(NotificationUtil.getBody(notification)).isEqualTo("Click to decrypt");
-        assertThat(NotificationUtil.getImage(notification)).isNull();
+        if (sendDataOnly) {
+            assertThat(notification).isNull();
+        } else {
+            assertThat(notification).isNotNull();
+            assertThat(NotificationUtil.getTitle(notification)).isEqualTo("You have received a Bisq notification");
+            assertThat(NotificationUtil.getBody(notification)).isEqualTo("Click to decrypt");
+            assertThat(NotificationUtil.getImage(notification)).isNull();
+        }
     }
 
     private void thenThePushNotificationWasAccepted() {
