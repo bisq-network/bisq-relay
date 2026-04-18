@@ -3,7 +3,7 @@
 ## Overview
 
 This service acts as an intermediary between Bisq clients and Apple Push Notification service (APNs)
-or Firebase Cloud Messaging (FCM) in order to send push notifications to the mobile app.
+or Firebase Cloud Messaging (FCM) to send push notifications to the mobile app.
 More documentation can be found [here](https://github.com/bisq-network/bisqremote/wiki).
 
 ## Building the Source Code
@@ -19,7 +19,7 @@ There are two ways to clone it before it can be built:
   git clone --recursive  https://github.com/bisq-network/bisq-relay.git
 ```
 
-2. Do a normal clone, and pull down the bisq repo dependency with two git submodule commands:
+2. Do a normal clone and pull down the bisq repo dependency with two git submodule commands:
 ```sh
   git clone https://github.com/bisq-network/bisq-relay.git
   cd bisq-relay
@@ -37,7 +37,7 @@ There are two ways to clone it before it can be built:
 
 ### Requirements
 
-Prior to running the service, several files need to be obtained in order to be able to
+Before running the service, several files need to be obtained to be able to
 send push notifications to APNs and FCM, and ultimately to the corresponding mobile app.
 
 #### FCM
@@ -47,6 +47,14 @@ under `project settings` > `service accounts`.
 
 > Note, the Android app needs to be built with a corresponding `google-services.json` file
 > for the same Firebase project.
+
+By default, the relay sends basic notifications that are only processed by the app when clicked on.
+If you want to send "data-only" messages, allowing the mobile app to receive and process messages
+in the background and control how/if it wants to show a notification to the user, you can set the
+`BISQ_RELAY_FCM_DATA_ONLY` environment variable to `true`.
+
+> For more details about messages and notifications,
+> see: https://firebase.google.com/docs/cloud-messaging/android/receive
 
 #### APNs
 An appropriate `apnsCertificate.p12` file needs to be copied to the root folder, along with the
@@ -77,11 +85,12 @@ The service is configured via environment variables. The following variables are
 
 #### FCM Configuration
 
-| Environment Variable | Description | Default |
-|---------------------|-------------|---------|
-| `BISQ_RELAY_FCM_ENABLED` | Enable FCM push notifications | `false` |
+| Environment Variable                         | Description                                                   | Default  |
+|----------------------------------------------|---------------------------------------------------------------|----------|
+| `BISQ_RELAY_FCM_ENABLED`                     | Enable FCM push notifications                                 | `false`  |
 | `BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE` | Path to Firebase service account JSON (required when enabled) | _(none)_ |
-| `BISQ_RELAY_FCM_FIREBASE_URL` | Firebase database URL (required when enabled) | _(none)_ |
+| `BISQ_RELAY_FCM_FIREBASE_URL`                | Firebase database URL (required when enabled)                 | _(none)_ |
+| `BISQ_RELAY_FCM_DATA_ONLY`                   | Enable sending FCM data-only messages                         | `false`  |
 
 ### Run the Script
 

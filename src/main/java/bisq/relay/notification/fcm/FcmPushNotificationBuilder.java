@@ -17,6 +17,7 @@
 
 package bisq.relay.notification.fcm;
 
+import bisq.relay.config.FcmProperties;
 import bisq.relay.notification.PushNotificationMessage;
 import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.Message;
@@ -24,6 +25,7 @@ import com.google.firebase.messaging.Notification;
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -37,9 +39,17 @@ public class FcmPushNotificationBuilder {
     // The maximum time-to-live duration of an Android message is 4 weeks
     public static final long TTL_DAYS = 28;
 
+    private final FcmProperties fcmProperties;
+
+    @Autowired
+    public FcmPushNotificationBuilder(final FcmProperties fcmProperties) {
+        this.fcmProperties = fcmProperties;
+    }
+
     public Message buildMessage(
             @Nonnull final PushNotificationMessage pushNotificationMessage,
-            @Nonnull final String deviceToken) {
+            @Nonnull final String deviceToken
+    ) {
         Objects.requireNonNull(deviceToken);
         Objects.requireNonNull(pushNotificationMessage);
 
@@ -52,6 +62,13 @@ public class FcmPushNotificationBuilder {
             LOG.warn("PushNotificationMessage is missing encrypted content: {}", pushNotificationMessage);
         }
 
+        if (!fcmProperties.isSendDataOnly()) {
+            messageBuilder.setNotification(Notification.builder()
+                    .setTitle("You have received a Bisq notification")
+                    .setBody("Click to decrypt")
+                    .build());
+        }
+
         return messageBuilder.build();
     }
 
@@ -61,11 +78,7 @@ public class FcmPushNotificationBuilder {
         AndroidConfig androidConfig = getAndroidConfig(pushNotificationMessage);
 
         return Message.builder()
-                .setAndroidConfig(androidConfig)
-                .setNotification(Notification.builder()
-                        .setTitle("You have received a Bisq notification")
-                        .setBody("Click to decrypt")
-                        .build());
+                .setAndroidConfig(androidConfig);
     }
 
     private AndroidConfig getAndroidConfig(@Nonnull final PushNotificationMessage pushNotificationMessage) {

@@ -77,7 +77,7 @@ public class ApnsPushNotificationSender implements PushNotificationSender {
                 .setClientCredentials(appleCertFile, appleCertPassword)
                 .build();
 
-        LOG.info("APNS client is ready to push notifications (sandbox={})", apnsProperties.isUseSandbox());
+        LOG.info("APNs client is ready to push notifications (sandbox={})", apnsProperties.isUseSandbox());
     }
 
     @VisibleForTesting
