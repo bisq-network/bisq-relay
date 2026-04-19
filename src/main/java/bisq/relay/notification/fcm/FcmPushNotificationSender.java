@@ -85,7 +85,7 @@ public class FcmPushNotificationSender implements PushNotificationSender {
 
         this.firebaseMessaging = FirebaseMessaging.getInstance();
 
-        LOG.info("FCM client is ready to push notifications");
+        LOG.info("FCM client is ready to push notifications (data-only={})", fcmProperties.isSendDataOnly());
     }
 
     @VisibleForTesting
