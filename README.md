@@ -150,3 +150,15 @@ Once deployed, the following will be available:
 - Application management interface: http://127.0.0.1:9400 (e.g. http://127.0.0.1:9400/actuator/info)
 - Grafana: http://127.0.0.1:3000
 - Prometheus: http://127.0.0.1:9090
+
+## API Reference
+
+### Request Body
+
+The `POST /v1/apns/device/{deviceToken}` and `POST /v1/fcm/device/{deviceToken}` endpoints accept a JSON body with the following fields:
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `encrypted` | string | yes | — | Encrypted notification payload |
+| `isUrgent` | boolean | yes | — | When `true`, sends as high-priority alert; when `false`, sends as background notification |
+| `isMutableContent` | boolean | no | `false` | APNs only. When `true`, sets the `mutable-content` flag in the APNs payload, allowing the iOS app's Notification Service Extension (NSE) to modify the notification content before display (e.g. for client-side decryption) |

@@ -80,7 +80,7 @@ public class RelayController {
         final String encryptedMessage = decodeParameter(encryptedMessageHex, "msg");
 
         final PushNotificationMessage pushNotificationMessage = new PushNotificationMessage(
-                encryptedMessage, true);
+                encryptedMessage, true, false);
 
         if (isAndroid.isPresent() && isAndroid.get().equals(true)) {
             if (fcmPushNotificationController == null) {

@@ -71,6 +71,10 @@ public class ApnsPushNotificationBuilder {
                 .setLocalizedAlertMessage("notification")
                 .setContentAvailable(true);
 
+        if (pushNotificationMessage.isMutableContent()) {
+            payloadBuilder.setMutableContent(true);
+        }
+
         if (pushNotificationMessage.encrypted() != null) {
             payloadBuilder.addCustomProperty("encrypted", pushNotificationMessage.encrypted());
         } else {

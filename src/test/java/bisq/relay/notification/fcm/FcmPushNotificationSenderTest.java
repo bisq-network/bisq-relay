@@ -96,7 +96,7 @@ class FcmPushNotificationSenderTest {
     void whenFailedToSendNotificationToFcm_thenExceptionRaised() {
         givenFcmIsUnreachable(new IOException("Lost connection"));
 
-        PushNotificationMessage pushNotification = new PushNotificationMessage("foo", true);
+        PushNotificationMessage pushNotification = new PushNotificationMessage("foo", true, false);
         Throwable thrown = catchThrowable(() -> fcmSender.sendNotification(pushNotification, DEVICE_TOKEN).join());
         assertThat(thrown).isInstanceOf(CompletionException.class);
 
@@ -139,7 +139,7 @@ class FcmPushNotificationSenderTest {
     }
 
     private void whenSendingAPushNotification(final boolean urgent) {
-        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent);
+        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent, false);
         pushNotificationResult = fcmSender.sendNotification(pushNotificationMessage, DEVICE_TOKEN).join();
 
         ArgumentCaptor<Message> message = ArgumentCaptor.forClass(Message.class);

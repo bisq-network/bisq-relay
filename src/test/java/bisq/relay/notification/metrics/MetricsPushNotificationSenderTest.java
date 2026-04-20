@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class MetricsPushNotificationSenderTest {
 
-    private static final PushNotificationMessage MSG = new PushNotificationMessage("foo", true);
+    private static final PushNotificationMessage MSG = new PushNotificationMessage("foo", true, false);
 
     private static ObjectProvider<MeterRegistry> providerOf(@Nonnull final MeterRegistry registry) {
         return new ObjectProvider<>() {
