@@ -2,8 +2,6 @@
 .idea
 build
 lib
-bisq-relay
-bisq-relay.bat
 /*.json
 /*.txt
 /*.p12

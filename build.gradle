@@ -1,6 +1,5 @@
 plugins {
     id 'application'
-    id 'bisq.post-build'
     alias(libs.plugins.shadow)
     alias(libs.plugins.springDependencyManagement)
     alias(libs.plugins.springframeworkBoot)
@@ -16,11 +15,11 @@ group 'bisq'
 version = file("src/main/resources/version.txt").text.trim()
 
 application {
-    project.mainClassName = 'bisq.relay.Main'
+    mainClass = 'bisq.relay.Main'
 }
 
 bootJar {
-    project.mainClassName = 'bisq.relay.Main'
+    mainClass = 'bisq.relay.Main'
 }
 
 [test, run, bootRun].each { runTask ->
