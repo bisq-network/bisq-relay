@@ -67,20 +67,22 @@ public class RelayController {
             @RequestParam("isAndroid") final Optional<Boolean> isAndroid,
             @RequestParam("token") final Optional<String> deviceTokenHex,
             @RequestParam("msg") final Optional<String> encryptedMessageHex,
+            @RequestParam(value = "mutableContent", required = false) final Optional<Boolean> mutableContent,
             final HttpServletRequest httpRequest) {
 
         if (LOG.isInfoEnabled()) {
-            LOG.info("Relaying notification; isAndroid={} token={} encryptedMessage={}",
+            LOG.info("Relaying notification; isAndroid={} token={} encryptedMessage={} mutableContent={}",
                     isAndroid.orElse(null),
                     maskSensitive(deviceTokenHex.orElse(null)),
-                    maskSensitive(encryptedMessageHex.orElse(null)));
+                    maskSensitive(encryptedMessageHex.orElse(null)),
+                    mutableContent.orElse(false));
         }
 
         final String deviceToken = decodeDeviceToken(deviceTokenHex);
         final String encryptedMessage = decodeParameter(encryptedMessageHex, "msg");
 
         final PushNotificationMessage pushNotificationMessage = new PushNotificationMessage(
-                encryptedMessage, true, false);
+                encryptedMessage, true, mutableContent.orElse(false));
 
         if (isAndroid.isPresent() && isAndroid.get().equals(true)) {
             if (fcmPushNotificationController == null) {
