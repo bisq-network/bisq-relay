@@ -160,5 +160,5 @@ The `POST /v1/apns/device/{deviceToken}` and `POST /v1/fcm/device/{deviceToken}`
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `encrypted` | string | yes | — | Encrypted notification payload |
-| `isUrgent` | boolean | yes | — | When `true`, sends as high-priority alert; when `false`, sends as background notification |
+| `isUrgent` | boolean | no | `false` | When `true`, sends as high-priority alert; when `false`, sends as background notification |
 | `isMutableContent` | boolean | no | `false` | APNs only. When `true`, sets the `mutable-content` flag in the APNs payload, allowing the iOS app's Notification Service Extension (NSE) to modify the notification content before display (e.g. for client-side decryption) |
