@@ -95,6 +95,29 @@ class ApnsPushNotificationControllerTest {
     }
 
     @Test
+    void whenSendApnsNotificationWithoutMutableContent_thenSuccessfulResponseReturned() throws Exception {
+        givenApnsNotificationWillBeAccepted();
+
+        // Simulate a request from an older client that does not include isMutableContent
+        String jsonWithoutMutableContent = "{\"encrypted\":\"encrypted\",\"isUrgent\":true}";
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonWithoutMutableContent);
+        MvcResult mvcResult = mockMvc.perform(requestBuilder)
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
+                .andReturn();
+        assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+        assertThat(asyncResult.getResponse().getContentAsString()).isEqualTo("{\"wasAccepted\":true,\"isUnregistered\":false}");
+    }
+
+    @Test
     void whenSendValidApnsNotification_thenSuccessfulResponseReturned() throws Exception {
         givenApnsNotificationWillBeAccepted();
 
@@ -102,7 +125,8 @@ class ApnsPushNotificationControllerTest {
         String serializedNotificationRequest = mapper.writeValueAsString(
                 new PushNotificationMessage(
                         "encrypted",
-                        true));
+                        true,
+                        false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .post("/v1/apns/device/{deviceToken}", deviceToken)
@@ -128,7 +152,8 @@ class ApnsPushNotificationControllerTest {
         String serializedNotificationRequest = mapper.writeValueAsString(
                 new PushNotificationMessage(
                         "encrypted",
-                        true));
+                        true,
+                        false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .post("/v1/apns/device/{deviceToken}", deviceToken)
@@ -154,7 +179,8 @@ class ApnsPushNotificationControllerTest {
         String serializedNotificationRequest = mapper.writeValueAsString(
                 new PushNotificationMessage(
                         "encrypted",
-                        true));
+                        true,
+                        false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .post("/v1/apns/device/{deviceToken}", deviceToken)
@@ -182,7 +208,8 @@ class ApnsPushNotificationControllerTest {
         String serializedNotificationRequest = mapper.writeValueAsString(
                 new PushNotificationMessage(
                         "encrypted",
-                        true));
+                        true,
+                        false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .post("/v1/apns/device/{deviceToken}", deviceToken)

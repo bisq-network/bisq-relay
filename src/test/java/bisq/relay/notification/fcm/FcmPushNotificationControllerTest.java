@@ -101,7 +101,8 @@ class FcmPushNotificationControllerTest {
         String serializedNotificationRequest = mapper.writeValueAsString(
                 new PushNotificationMessage(
                         "encrypted",
-                        true));
+                        true,
+                        false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .post("/v1/fcm/device/{deviceToken}", deviceToken)
@@ -126,7 +127,8 @@ class FcmPushNotificationControllerTest {
         String serializedNotificationRequest = mapper.writeValueAsString(
                 new PushNotificationMessage(
                         "encrypted",
-                        true));
+                        true,
+                        false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .post("/v1/fcm/device/{deviceToken}", deviceToken)
@@ -151,7 +153,8 @@ class FcmPushNotificationControllerTest {
         String serializedNotificationRequest = mapper.writeValueAsString(
                 new PushNotificationMessage(
                         "encrypted",
-                        true));
+                        true,
+                        false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .post("/v1/fcm/device/{deviceToken}", deviceToken)
@@ -178,7 +181,8 @@ class FcmPushNotificationControllerTest {
         String serializedNotificationRequest = mapper.writeValueAsString(
                 new PushNotificationMessage(
                         "encrypted",
-                        true));
+                        true,
+                        false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
                 .post("/v1/fcm/device/{deviceToken}", deviceToken)

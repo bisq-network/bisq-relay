@@ -25,13 +25,15 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PushNotificationMessage(
         @Nullable String encrypted,
-        boolean isUrgent) {
+        boolean isUrgent,
+        boolean isMutableContent) {
 
     @Override
     public String toString() {
         return new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE)
                 .append("encrypted", encrypted)
                 .append("isUrgent", isUrgent)
+                .append("isMutableContent", isMutableContent)
                 .toString();
     }
 }

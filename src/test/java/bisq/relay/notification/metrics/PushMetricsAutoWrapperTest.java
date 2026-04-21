@@ -66,7 +66,7 @@ class PushMetricsAutoWrapperTest {
         assertThat(bean).isInstanceOf(MetricsPushNotificationSender.class);
 
         // Smoke: call and ensure metrics recorded
-        bean.sendNotification(new PushNotificationMessage("foo", true), "tok").join();
+        bean.sendNotification(new PushNotificationMessage("foo", true, false), "tok").join();
         var reg = ctx.getBean(SimpleMeterRegistry.class);
         assertThat(reg.get(PushMetrics.METRIC_PUSH_ATTEMPTS_TOTAL)
                 .tag(PushMetrics.TAG_PROVIDER, PROVIDER_ID_APNS).counter().count()).isEqualTo(1.0);

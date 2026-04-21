@@ -64,8 +64,18 @@ class ApnsPushNotificationSenderTest {
     @ValueSource(booleans = {true, false})
     void whenPushNotificationIsAcceptedByApns_thenSuccessfulResultReturned(final boolean urgent) {
         givenApnsWillAcceptPushNotifications();
-        whenSendingAPushNotification(urgent);
-        thenTheSentPushNotificationIsCorrectlyPopulated(urgent);
+        whenSendingAPushNotification(urgent, false);
+        thenTheSentPushNotificationIsCorrectlyPopulated(urgent, false);
+        thenThePushNotificationWasAccepted();
+
+        verifyNoMoreInteractions(apnsClient);
+    }
+
+    @Test
+    void whenPushNotificationWithMutableContentIsAcceptedByApns_thenSuccessfulResultReturned() {
+        givenApnsWillAcceptPushNotifications();
+        whenSendingAPushNotification(true, true);
+        thenTheSentPushNotificationIsCorrectlyPopulated(true, true);
         thenThePushNotificationWasAccepted();
 
         verifyNoMoreInteractions(apnsClient);
@@ -76,8 +86,8 @@ class ApnsPushNotificationSenderTest {
     void whenPushNotificationIsRejectedByApns_thenErrorResultReturned(
             final String rejectionReason, final boolean isUnregistered, final boolean hasTokenInvalidationTimestamp) {
         givenApnsWillRejectPushNotifications(rejectionReason);
-        whenSendingAPushNotification(true);
-        thenTheSentPushNotificationIsCorrectlyPopulated(true);
+        whenSendingAPushNotification(true, false);
+        thenTheSentPushNotificationIsCorrectlyPopulated(true, false);
         thenThePushNotificationWasNotAccepted(rejectionReason, hasTokenInvalidationTimestamp, isUnregistered);
 
         verifyNoMoreInteractions(apnsClient);
@@ -87,7 +97,7 @@ class ApnsPushNotificationSenderTest {
     void whenFailedToSendNotificationToApns_thenExceptionRaised() {
         givenApnsIsUnreachable(new IOException("lost connection"));
 
-        PushNotificationMessage pushNotification = new PushNotificationMessage("foo", true);
+        PushNotificationMessage pushNotification = new PushNotificationMessage("foo", true, false);
         Throwable thrown = catchThrowable(() -> apnsSender.sendNotification(pushNotification, DEVICE_TOKEN).join());
         assertThat(thrown).isInstanceOf(CompletionException.class).hasCauseInstanceOf(IOException.class);
 
@@ -136,8 +146,8 @@ class ApnsPushNotificationSenderTest {
                                 new MockPushNotificationFuture<>(invocationOnMock.getArgument(0), exception));
     }
 
-    private void whenSendingAPushNotification(final boolean urgent) {
-        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent);
+    private void whenSendingAPushNotification(final boolean urgent, final boolean mutableContent) {
+        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent, mutableContent);
         pushNotificationResult = apnsSender.sendNotification(pushNotificationMessage, DEVICE_TOKEN).join();
 
         ArgumentCaptor<SimpleApnsPushNotification> notification = ArgumentCaptor.forClass(SimpleApnsPushNotification.class);
@@ -145,12 +155,18 @@ class ApnsPushNotificationSenderTest {
         sentPushNotification = notification.getValue();
     }
 
-    private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent) {
+    private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent, final boolean mutableContent) {
         assertThat(sentPushNotification.getToken()).isEqualTo(DEVICE_TOKEN);
         assertThat(sentPushNotification.getExpiration()).isCloseTo(
                 Instant.now().plus(ApnsPushNotificationBuilder.INVALIDATION_TIME_PERIOD_DAYS, DAYS), within(10, SECONDS));
-        assertThat(sentPushNotification.getPayload()).isEqualTo(
-                "{\"encrypted\":\"foo\",\"aps\":{\"alert\":{\"loc-key\":\"notification\"},\"content-available\":1}}");
+
+        if (mutableContent) {
+            assertThat(sentPushNotification.getPayload()).isEqualTo(
+                    "{\"encrypted\":\"foo\",\"aps\":{\"alert\":{\"loc-key\":\"notification\"},\"content-available\":1,\"mutable-content\":1}}");
+        } else {
+            assertThat(sentPushNotification.getPayload()).isEqualTo(
+                    "{\"encrypted\":\"foo\",\"aps\":{\"alert\":{\"loc-key\":\"notification\"},\"content-available\":1}}");
+        }
 
         assertThat(sentPushNotification.getPriority())
                 .isEqualTo(urgent ? DeliveryPriority.IMMEDIATE : DeliveryPriority.CONSERVE_POWER);
