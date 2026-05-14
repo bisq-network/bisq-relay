@@ -15,7 +15,7 @@
  * along with Bisq. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package bisq.relay.test.utils;
+package bisq.relaytest.utils;
 
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;

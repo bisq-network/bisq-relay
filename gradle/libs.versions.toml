@@ -4,17 +4,18 @@
 # Convention: mark all versions using 'strictly'. This ensures only one version is allowed in the dependency tree, even
 # when multiple versions are attempted to be brought in as transitive dependencies of other requirements.
 [versions]
-apache-commons-lib = { strictly = '3.18.0' }
-firebase-lib = { strictly = '9.6.0' }
-gradle-git-properties-plugin = { strictly = '2.5.2' }
-junit-jupiter-lib = { strictly = '5.13.4' }
-logback-lib = { strictly = '1.5.18' }
+apache-commons-lib = { strictly = '3.20.0' }
+firebase-lib = { strictly = '9.8.0' }
+gradle-git-properties-plugin = { strictly = '2.5.4' }
+junit-jupiter-lib = { strictly = '5.14.2' }
+logback-lib = { strictly = '1.5.26' }
 pushy-lib = { strictly = '0.15.4' }
+resilience4j-lib = { strictly = '2.3.0' }
 slf4j-lib = { strictly = '2.0.17' }
-spring-boot-lib = { strictly = '3.5.6' }
-shadow-plugin = { strictly = '7.1.2' }
+spring-boot-lib = { strictly = '3.5.13' }
+shadow-plugin = { strictly = '9.4.1' }
 spring-plugin = { strictly = '1.1.7' }
-springframework-plugin = { strictly = '3.3.13' }
+springframework-plugin = { strictly = '3.5.10' }
 
 # Referenced in subproject's build.gradle > dependencies block in the form 'implementation libs.guava'
 # Note: keys can contain dash (protobuf-java) but the dash is replaced by dot when referenced
@@ -23,21 +24,24 @@ springframework-plugin = { strictly = '3.3.13' }
 apache-commons-lang3 = { module = 'org.apache.commons:commons-lang3', version.ref = 'apache-commons-lib' }
 firebase = { module = 'com.google.firebase:firebase-admin', version.ref = 'firebase-lib' }
 junit-jupiter = { module = 'org.junit.jupiter:junit-jupiter', version.ref = 'junit-jupiter-lib' }
-logback-core = { module = 'ch.qos.logback:logback-core', version.ref = 'logback-lib' }
 logback-classic = { module = 'ch.qos.logback:logback-classic', version.ref = 'logback-lib' }
+logback-core = { module = 'ch.qos.logback:logback-core', version.ref = 'logback-lib' }
 micrometer-registry-prometheus = { module = 'io.micrometer:micrometer-registry-prometheus' }
 pushy = { module = 'com.eatthepath:pushy', version.ref = 'pushy-lib' }
+resilience4j-micrometer = { module = 'io.github.resilience4j:resilience4j-micrometer', version.ref = 'resilience4j-lib' }
+resilience4j-spring-boot = { module = 'io.github.resilience4j:resilience4j-spring-boot3', version.ref = 'resilience4j-lib' }
 slf4j-api = { module = 'org.slf4j:slf4j-api', version.ref = 'slf4j-lib' }
-spring-boot-dependencies = { module = 'org.springframework.boot:spring-boot-dependencies', version.ref = 'spring-boot-lib' }
 spring-boot-actuator = { module = 'org.springframework.boot:spring-boot-starter-actuator', version.ref = 'spring-boot-lib' }
-spring-boot-web = { module = 'org.springframework.boot:spring-boot-starter-web', version.ref = 'spring-boot-lib' }
-spring-boot-validation = { module = 'org.springframework.boot:spring-boot-starter-validation', version.ref = 'spring-boot-lib' }
+spring-boot-aop = { module = 'org.springframework.boot:spring-boot-starter-aop', version.ref = 'spring-boot-lib' }
+spring-boot-dependencies = { module = 'org.springframework.boot:spring-boot-dependencies', version.ref = 'spring-boot-lib' }
 spring-boot-test = { module = 'org.springframework.boot:spring-boot-starter-test', version.ref = 'spring-boot-lib' }
+spring-boot-validation = { module = 'org.springframework.boot:spring-boot-starter-validation', version.ref = 'spring-boot-lib' }
+spring-boot-web = { module = 'org.springframework.boot:spring-boot-starter-web', version.ref = 'spring-boot-lib' }
 
 [bundles]
 
 [plugins]
-shadow = { id = 'com.github.johnrengelman.shadow', version.ref = 'shadow-plugin' }
+shadow = { id = 'com.gradleup.shadow', version.ref = 'shadow-plugin' }
 springDependencyManagement = { id = 'io.spring.dependency-management', version.ref = 'spring-plugin' }
 springframeworkBoot = { id = 'org.springframework.boot', version.ref = 'springframework-plugin' }
 gradleGitProperties = { id = 'com.gorylenko.gradle-git-properties', version.ref = 'gradle-git-properties-plugin' }

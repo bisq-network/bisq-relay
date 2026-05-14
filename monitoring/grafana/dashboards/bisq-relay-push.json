@@ -56,13 +56,13 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(push_attempts_total{provider=~\"$provider\"}[5m]))",
+          "expr": "60 * sum(rate(push_attempts_total{provider=~\"$provider\"}[5m]))",
           "legendFormat": "{{$provider}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "rps",
+          "unit": "suffix: rpm",
           "decimals": 2
         }
       },
@@ -83,13 +83,13 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(push_total{provider=~\"$provider\",result=\"accepted\"}[5m])) / clamp_min(sum(rate(push_total{provider=~\"$provider\"}[5m])), 1e-9)",
+          "expr": "60 * sum(rate(push_total{provider=~\"$provider\",result=\"accepted\"}[5m]))",
           "legendFormat": "{{provider}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "rps",
+          "unit": "suffix: rpm",
           "decimals": 2
         }
       },
@@ -116,10 +116,65 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1e-9
+              }
+            ]
+          }
         }
       },
       "options": {
+        "colorMode": "value",
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Short-Circuit Rate (CB OPEN)",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "60 * sum(rate(push_short_circuited_total{provider=~\"$provider\"}[5m]))",
+          "legendFormat": "{{provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: rpm",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1e-9
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
         "tooltip": {
           "mode": "all"
         }
@@ -129,20 +184,20 @@
       "type": "bargauge",
       "title": "Delivery Outcome",
       "gridPos": {
-        "x": 12,
-        "y": 0,
-        "w": 12,
-        "h": 4
+        "x": 0,
+        "y": 4,
+        "w": 28,
+        "h": 8
       },
       "targets": [
         {
-          "expr": "sum by (result, provider) (rate(push_total{provider=~\"$provider\"}[5m]))",
+          "expr": "60 * sum by (result, provider) (rate(push_total{provider=~\"$provider\"}[5m]))",
           "legendFormat": "{{provider}} {{result}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "rps",
+          "unit": "suffix: rpm",
           "decimals": 2
         }
       },
@@ -154,10 +209,41 @@
     },
     {
       "type": "timeseries",
-      "title": "Latency Percentiles (accepted)",
+      "title": "Throughput: Attempts vs Accepted",
       "gridPos": {
         "x": 0,
-        "y": 4,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "60 * sum(rate(push_attempts_total{provider=~\"$provider\"}[5m]))",
+          "legendFormat": "attempts"
+        },
+        {
+          "expr": "60 * sum(rate(push_total{provider=~\"$provider\",result=\"accepted\"}[5m]))",
+          "legendFormat": "accepted"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: rpm",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency Percentiles (Accepted)",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
         "w": 12,
         "h": 8
       },
@@ -196,20 +282,20 @@
       "title": "Rejected/Error by Code",
       "description": "Aggregated by classification tag `code` (token, throttle, payload, server, auth, io, other).",
       "gridPos": {
-        "x": 12,
-        "y": 4,
+        "x": 0,
+        "y": 20,
         "w": 12,
         "h": 8
       },
       "targets": [
         {
-          "expr": "sum by (code) (rate(push_latency_seconds_count{provider=~\"$provider\",result!=\"accepted\"}[5m]))",
+          "expr": "60 * sum by (code) (rate(push_latency_seconds_count{provider=~\"$provider\",result!=\"accepted\"}[5m]))",
           "legendFormat": "{{code}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "rps",
+          "unit": "suffix: rpm",
           "decimals": 2
         }
       },
@@ -220,22 +306,27 @@
       }
     },
     {
-      "type": "table",
-      "title": "Top Error Codes (5m avg)",
+      "type": "timeseries",
+      "title": "Circuit Breaker State (0=closed, 1=open, 2=half-open)",
       "gridPos": {
         "x": 0,
-        "y": 12,
+        "y": 28,
         "w": 12,
         "h": 8
       },
       "targets": [
         {
-          "expr": "topk(10, sum by (code) (rate(push_latency_seconds_count{provider=~\"$provider\",result=\"error\"}[5m])))",
-          "legendFormat": "{{code}}"
+          "expr": "max by (name) (resilience4j_circuitbreaker_state{name=~\"$provider\"})",
+          "legendFormat": "{{name}}"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        }
+      },
       "options": {
-        "showHeader": true,
         "tooltip": {
           "mode": "all"
         }
@@ -243,26 +334,134 @@
     },
     {
       "type": "timeseries",
-      "title": "Throughput: Attempts vs Accepted",
+      "title": "Circuit Breaker Calls (rate by kind)",
       "gridPos": {
         "x": 12,
-        "y": 12,
+        "y": 28,
         "w": 12,
         "h": 8
       },
       "targets": [
         {
-          "expr": "sum(rate(push_attempts_total{provider=~\"$provider\"}[5m]))",
-          "legendFormat": "attempts"
-        },
-        {
-          "expr": "sum(rate(push_total{provider=~\"$provider\",result=\"accepted\"}[5m]))",
-          "legendFormat": "accepted"
+          "expr": "60 * sum by (name, kind) (rate(resilience4j_circuitbreaker_calls{name=~\"$provider\"}[5m]))",
+          "legendFormat": "{{name}} {{kind}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "rps",
+          "unit": "suffix: rpm",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Circuit Breaker Failure Rate (%)",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "max by (name) (resilience4j_circuitbreaker_failure_rate{name=~\"$provider\"})",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Circuit Breaker Slow Call Rate (%)",
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "max by (name) (resilience4j_circuitbreaker_slow_call_rate{name=~\"$provider\"})",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Circuit Breaker Buffered Calls",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "max by (name, kind) (resilience4j_circuitbreaker_buffered_calls{name=~\"$provider\"})",
+          "legendFormat": "{{name}} {{kind}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "all"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Short-Circuited Sends (rate)",
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "60 * sum by (provider) (rate(push_short_circuited_total{provider=~\"$provider\"}[5m]))",
+          "legendFormat": "{{provider}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: rpm",
           "decimals": 2
         }
       },

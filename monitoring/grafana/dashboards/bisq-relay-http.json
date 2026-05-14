@@ -42,13 +42,13 @@
       },
       "targets": [
         {
-          "expr": "sum by (uri) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m]))",
+          "expr": "60 * sum by (uri) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m]))",
           "legendFormat": "{{uri}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "rps",
+          "unit": "suffix: rpm",
           "decimals": 2
         }
       },
@@ -69,13 +69,13 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m]))",
+          "expr": "60 * sum by (status) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\",uri=~\"$uri\"}[5m]))",
           "legendFormat": "{{status}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "rps",
+          "unit": "suffix: rpm",
           "decimals": 2
         }
       },

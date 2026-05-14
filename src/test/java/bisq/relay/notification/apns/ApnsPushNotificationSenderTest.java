@@ -19,6 +19,7 @@ package bisq.relay.notification.apns;
 
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
+import bisq.relay.notification.resilience.ResilienceAsyncExecutor;
 import com.eatthepath.pushy.apns.*;
 import com.eatthepath.pushy.apns.util.SimpleApnsPushNotification;
 import com.eatthepath.pushy.apns.util.concurrent.PushNotificationFuture;
@@ -34,6 +35,9 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.SECONDS;
@@ -57,7 +61,17 @@ class ApnsPushNotificationSenderTest {
     @BeforeEach
     void setup() {
         apnsClient = mock(ApnsClient.class);
-        apnsSender = new ApnsPushNotificationSender(apnsClient, APNS_BUNDLE_ID, new ApnsPushNotificationBuilder());
+
+        ResilienceAsyncExecutor resilienceAsyncExecutor = mock(ResilienceAsyncExecutor.class);
+        when(resilienceAsyncExecutor.execute(any(), any(), any()))
+                .thenAnswer(inv -> {
+                    Supplier<? extends CompletionStage<PushNotificationResult>> supplier =
+                            inv.getArgument(1);
+                    return supplier.get().toCompletableFuture();
+                });
+
+        apnsSender = new ApnsPushNotificationSender(
+                apnsClient, APNS_BUNDLE_ID, new ApnsPushNotificationBuilder(), resilienceAsyncExecutor);
     }
 
     @ParameterizedTest
@@ -97,12 +111,32 @@ class ApnsPushNotificationSenderTest {
     void whenFailedToSendNotificationToApns_thenExceptionRaised() {
         givenApnsIsUnreachable(new IOException("lost connection"));
 
-        PushNotificationMessage pushNotification = new PushNotificationMessage("foo", true, false);
+        PushNotificationMessage pushNotification = new PushNotificationMessage(
+                "foo", true, false);
         Throwable thrown = catchThrowable(() -> apnsSender.sendNotification(pushNotification, DEVICE_TOKEN).join());
         assertThat(thrown).isInstanceOf(CompletionException.class).hasCauseInstanceOf(IOException.class);
 
         verify(apnsClient).sendNotification(isA(SimpleApnsPushNotification.class));
 
+        verifyNoMoreInteractions(apnsClient);
+    }
+
+    @Test
+    void whenApnsReturnsNoResponseAndNoCause_thenIOExceptionTransportErrorRaised() {
+        givenApnsCompletesWithNoResponseAndNoCause();
+
+        PushNotificationMessage pushNotification = new PushNotificationMessage(
+                "foo", true, true);
+        Throwable thrown = catchThrowable(() -> apnsSender.sendNotification(pushNotification, DEVICE_TOKEN).join());
+
+        assertThat(thrown)
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(IOException.class);
+
+        assertThat(thrown.getCause())
+                .hasMessage("APNs transport error");
+
+        verify(apnsClient).sendNotification(isA(SimpleApnsPushNotification.class));
         verifyNoMoreInteractions(apnsClient);
     }
 
@@ -146,26 +180,54 @@ class ApnsPushNotificationSenderTest {
                                 new MockPushNotificationFuture<>(invocationOnMock.getArgument(0), exception));
     }
 
+    private void givenApnsCompletesWithNoResponseAndNoCause() {
+        @SuppressWarnings("unchecked")
+        PushNotificationFuture<SimpleApnsPushNotification, PushNotificationResponse<SimpleApnsPushNotification>> fut =
+                (PushNotificationFuture<SimpleApnsPushNotification, PushNotificationResponse<SimpleApnsPushNotification>>)
+                        mock(PushNotificationFuture.class);
+
+        when(fut.whenComplete(any())).thenAnswer(inv -> {
+            @SuppressWarnings("unchecked")
+            BiConsumer<PushNotificationResponse<SimpleApnsPushNotification>, Throwable> consumer =
+                    inv.getArgument(0, BiConsumer.class);
+            consumer.accept(null, null);
+            return fut;
+        });
+
+        when(apnsClient.sendNotification(isA(SimpleApnsPushNotification.class))).thenReturn(fut);
+    }
+
     private void whenSendingAPushNotification(final boolean urgent, final boolean mutableContent) {
-        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent, mutableContent);
+        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage(
+                "foo", urgent, mutableContent);
         pushNotificationResult = apnsSender.sendNotification(pushNotificationMessage, DEVICE_TOKEN).join();
 
-        ArgumentCaptor<SimpleApnsPushNotification> notification = ArgumentCaptor.forClass(SimpleApnsPushNotification.class);
+        ArgumentCaptor<SimpleApnsPushNotification> notification =
+                ArgumentCaptor.forClass(SimpleApnsPushNotification.class);
         verify(apnsClient).sendNotification(notification.capture());
         sentPushNotification = notification.getValue();
     }
 
-    private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent, final boolean mutableContent) {
+    private void thenTheSentPushNotificationIsCorrectlyPopulated(
+            final boolean urgent,
+            final boolean mutableContent
+    ) {
+        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage(
+                "foo", urgent, mutableContent);
+
         assertThat(sentPushNotification.getToken()).isEqualTo(DEVICE_TOKEN);
         assertThat(sentPushNotification.getExpiration()).isCloseTo(
-                Instant.now().plus(ApnsPushNotificationBuilder.INVALIDATION_TIME_PERIOD_DAYS, DAYS), within(10, SECONDS));
+                Instant.now().plus(ApnsPushNotificationBuilder.INVALIDATION_TIME_PERIOD_DAYS, DAYS),
+                within(10, SECONDS));
 
         if (mutableContent) {
             assertThat(sentPushNotification.getPayload()).isEqualTo(
-                    "{\"encrypted\":\"foo\",\"aps\":{\"alert\":{\"loc-key\":\"notification\"},\"content-available\":1,\"mutable-content\":1}}");
+                    "{\"encrypted\":\"foo\",\"aps\":{\"alert\":{\"loc-key\":\"notification\"}," +
+                            "\"content-available\":1,\"mutable-content\":1}}");
         } else {
             assertThat(sentPushNotification.getPayload()).isEqualTo(
-                    "{\"encrypted\":\"foo\",\"aps\":{\"alert\":{\"loc-key\":\"notification\"},\"content-available\":1}}");
+                    "{\"encrypted\":\"foo\",\"aps\":{\"alert\":{\"loc-key\":\"notification\"}," +
+                            "\"content-available\":1}}");
         }
 
         assertThat(sentPushNotification.getPriority())
@@ -174,11 +236,7 @@ class ApnsPushNotificationSenderTest {
         assertThat(sentPushNotification.getTopic()).isEqualTo(APNS_BUNDLE_ID);
         assertThat(sentPushNotification.getPushType())
                 .isEqualTo(urgent ? PushType.ALERT : PushType.BACKGROUND);
-        if (urgent) {
-            assertThat(sentPushNotification.getCollapseId()).isNotNull();
-        } else {
-            assertThat(sentPushNotification.getCollapseId()).isNull();
-        }
+        assertThat(sentPushNotification.getCollapseId()).isEqualTo(pushNotificationMessage.coalescingKey());
     }
 
     private void thenThePushNotificationWasAccepted() {
@@ -189,7 +247,10 @@ class ApnsPushNotificationSenderTest {
     }
 
     private void thenThePushNotificationWasNotAccepted(
-            final String expectedErrorCode, final boolean hasTokenInvalidationTimestamp, final boolean isUnregistered) {
+            final String expectedErrorCode,
+            final boolean hasTokenInvalidationTimestamp,
+            final boolean isUnregistered
+    ) {
         assertThat(pushNotificationResult.wasAccepted()).isFalse();
         assertThat(pushNotificationResult.errorCode()).isEqualTo(expectedErrorCode);
         if (hasTokenInvalidationTimestamp) {

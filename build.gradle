@@ -1,6 +1,5 @@
 plugins {
     id 'application'
-    id 'bisq.post-build'
     alias(libs.plugins.shadow)
     alias(libs.plugins.springDependencyManagement)
     alias(libs.plugins.springframeworkBoot)
@@ -16,11 +15,11 @@ group 'bisq'
 version = file("src/main/resources/version.txt").text.trim()
 
 application {
-    project.mainClassName = 'bisq.relay.Main'
+    mainClass = 'bisq.relay.Main'
 }
 
 bootJar {
-    project.mainClassName = 'bisq.relay.Main'
+    mainClass = 'bisq.relay.Main'
 }
 
 [test, run, bootRun].each { runTask ->
@@ -31,7 +30,7 @@ bootJar {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
 
@@ -41,17 +40,21 @@ jar.manifest.attributes(
 )
 
 dependencies {
+    implementation libs.spring.boot.aop
+    implementation libs.spring.boot.actuator
     implementation libs.spring.boot.dependencies
-    implementation libs.spring.boot.web
     implementation libs.spring.boot.validation
+    implementation libs.spring.boot.web
+
+    implementation libs.resilience4j.micrometer
+    implementation libs.resilience4j.spring.boot
+
+    runtimeOnly libs.micrometer.registry.prometheus
 
     implementation(libs.firebase) {
         exclude group: 'commons-logging', module: 'commons-logging'
     }
     implementation libs.pushy
-
-    implementation libs.spring.boot.actuator
-    runtimeOnly libs.micrometer.registry.prometheus
 
     implementation libs.apache.commons.lang3
 
@@ -60,6 +63,8 @@ dependencies {
     implementation libs.logback.classic
 
     testImplementation libs.junit.jupiter
+    testImplementation libs.resilience4j.spring.boot
+    testImplementation libs.spring.boot.aop
     testImplementation libs.spring.boot.test
 }
 

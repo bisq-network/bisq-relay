@@ -17,7 +17,7 @@
 
 package com.google.firebase.messaging;
 
-import bisq.relay.test.utils.ReflectionUtil;
+import bisq.relaytest.utils.ReflectionUtil;
 import jakarta.annotation.Nonnull;
 
 import java.util.Objects;
@@ -45,5 +45,12 @@ public final class AndroidConfigUtil {
         Objects.requireNonNull(androidConfig, "androidConfig must not be null");
         return (AndroidNotification) ReflectionUtil.getPrivateField(
                 AndroidConfig.class, "notification").get(androidConfig);
+    }
+
+    public static String getCollapseKey(@Nonnull final AndroidConfig androidConfig)
+            throws NoSuchFieldException, IllegalAccessException {
+        Objects.requireNonNull(androidConfig, "androidConfig must not be null");
+        return (String) ReflectionUtil.getPrivateField(
+                AndroidConfig.class, "collapseKey").get(androidConfig);
     }
 }

@@ -24,6 +24,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanInitializationException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.annotation.AnnotationUtils;
 
 /**
  * Auto-wraps all {@link PushNotificationSender} beans with {@link MetricsPushNotificationSender}
@@ -49,7 +50,7 @@ class PushMetricsAutoWrapper implements BeanPostProcessor {
         }
 
         if (bean instanceof PushNotificationSender sender) {
-            final PushProvider ann = bean.getClass().getAnnotation(PushProvider.class);
+            final PushProvider ann = AnnotationUtils.findAnnotation(bean.getClass(), PushProvider.class);
             if (ann == null || ann.value().isBlank()) {
                 throw new BeanInitializationException(
                         "PushNotificationSender bean '" + beanName + "' (" + bean.getClass().getName() + ") " +
