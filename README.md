@@ -25,6 +25,8 @@ Before running the service, several files need to be obtained to be able to
 send push notifications to APNs and FCM, and ultimately to the corresponding mobile app.
 
 #### FCM
+
+A Firebase service account key is used to authenticate the relay with FCM.
 An appropriate `fcmServiceAccountKey.json` file needs to be copied to the root folder.
 Download it from the [Firebase console](https://console.firebase.google.com/)
 under `project settings` > `service accounts`.
@@ -41,6 +43,8 @@ in the background and control how/if it wants to show a notification to the user
 > see: https://firebase.google.com/docs/cloud-messaging/android/receive
 
 #### APNs
+
+An APNs certificate is used to authenticate the relay with APNs.
 An appropriate `apnsCertificate.p12` file needs to be copied to the root folder, along with the
 corresponding password stored within a `apnsCertificatePassword.txt` file.
 
@@ -65,7 +69,8 @@ The service is configured via environment variables. The following variables are
 | `BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE` | Path to certificate password file (required) | _(none)_ |
 | `BISQ_RELAY_APNS_USE_SANDBOX`               | Use APNs sandbox environment                 | `true`   |
 
-> **Note:** `BISQ_RELAY_APNS_USE_SANDBOX` defaults to `true` for safety. Production deployments must explicitly set this to `false`.
+> **Note:** `BISQ_RELAY_APNS_USE_SANDBOX` defaults to `true` for safety. Production deployments must explicitly
+> set this to `false`.
 
 #### FCM Configuration
 
@@ -97,7 +102,7 @@ For production deployment:
 ```sh
   export BISQ_RELAY_APNS_BUNDLE_ID="your.app.bundle.id"
   export BISQ_RELAY_APNS_USE_SANDBOX=false
-  export BISQ_RELAY_APNS_CERTIFICATE_FILE=/path/to/apnsCertificate.production.p12
+  export BISQ_RELAY_APNS_CERTIFICATE_FILE=/path/to/apnsCertificate.p12
   export BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE=/path/to/apnsCertificatePassword.txt
   ./build/install/bisq-relay/bin/bisq-relay
 ```
@@ -191,8 +196,8 @@ Once deployed, the following will be available:
 
 The `POST /v1/apns/device/{deviceToken}` and `POST /v1/fcm/device/{deviceToken}` endpoints accept a JSON body with the following fields:
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `encrypted` | string | yes | — | Encrypted notification payload |
-| `isUrgent` | boolean | no | `false` | When `true`, sends as high-priority alert; when `false`, sends as background notification |
-| `isMutableContent` | boolean | no | `false` | APNs only. When `true`, sets the `mutable-content` flag in the APNs payload, allowing the iOS app's Notification Service Extension (NSE) to modify the notification content before display (e.g. for client-side decryption) |
+| Field              | Type    | Required | Default | Description                                                                                                                                                                                                                  |
+|--------------------|---------|----------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `encrypted`        | string  | yes      | —       | Encrypted notification payload                                                                                                                                                                                               |
+| `isUrgent`         | boolean | no       | `false` | When `true`, sends as high-priority alert; when `false`, sends as background notification                                                                                                                                    |
+| `isMutableContent` | boolean | no       | `false` | APNs only. When `true`, sets the `mutable-content` flag in the APNs payload, allowing the iOS app's Notification Service Extension (NSE) to modify the notification content before display (e.g. for client-side decryption) |
