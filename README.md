@@ -121,6 +121,54 @@ You can still use Java system properties if needed:
   ./build/install/bisq-relay/bin/bisq-relay
 ```
 
+## Production Deployment
+
+For a production deployment, run nginx in front of `bisq-relay` as a local request gate.
+This keeps the Java application on `127.0.0.1:8081`, nginx on `127.0.0.1:8080`, and Tor can point to
+nginx instead of directly at the application:
+
+```text
+Tor onion service :80
+        ↓
+127.0.0.1:8080  nginx
+        ↓
+127.0.0.1:8081  bisq-relay
+```
+
+Configure the Tor hidden service configuration (`/etc/tor/torrc`) so the onion service forwards to nginx:
+
+```text
+HiddenServicePort 80 127.0.0.1:8080
+```
+
+Install the shared nginx include files from [`nginx/bisq-relay/`](nginx/bisq-relay/) under
+`/etc/nginx/bisq-relay/`, then install [`nginx/conf.d/bisq-relay.conf`](nginx/conf.d/bisq-relay.conf)
+as `/etc/nginx/conf.d/bisq-relay.conf`.
+
+> The nginx configuration restricts requests to the supported endpoints, rejects unexpected methods and content types,
+> limits request body size, blocks obvious traversal probes, and rate-limits traffic before it reaches the application.
+
+After applying the nginx configuration, reload nginx and Tor:
+
+```sh
+sudo nginx -t
+sudo systemctl reload nginx
+sudo systemctl reload tor
+```
+
+Verify that nginx and bisq-relay are listening locally:
+
+```sh
+ss -ltnp | grep -E ':8080|:8081'
+```
+
+The expected deployment is:
+
+```text
+127.0.0.1:8080  nginx
+127.0.0.1:8081  bisq-relay
+```
+
 ## Deploying a Local Test Environment
 
 Use the following docker command to deploy a complete local test environment:
@@ -131,7 +179,8 @@ docker compose up --build
 
 Once deployed, the following will be available:
 
-- Application REST API: http://127.0.0.1:8080 (e.g. `POST http://127.0.0.1:8080/v1/apns/device/{deviceToken}`)
+- Application REST API through nginx: http://127.0.0.1:8080 (e.g.
+  `POST http://127.0.0.1:8080/v1/apns/device/{deviceToken}`)
 - Application management interface: http://127.0.0.1:9400 (e.g. http://127.0.0.1:9400/actuator/info)
 - Grafana: http://127.0.0.1:3000
 - Prometheus: http://127.0.0.1:9090

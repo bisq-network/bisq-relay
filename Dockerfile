@@ -13,7 +13,7 @@ COPY apnsCertificatePassword.txt .
 COPY fcmServiceAccountKey.json .
 
 # Expose application traffic port
-EXPOSE 8080
+EXPOSE 8081
 # Expose management/actuator port for Prometheus
 EXPOSE 9400
 

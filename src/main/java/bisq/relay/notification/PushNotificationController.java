@@ -43,8 +43,6 @@ public abstract class PushNotificationController {
         this.objectMapper = Objects.requireNonNull(objectMapper);
     }
 
-    // TODO implement rate limiting, can use resilience4j
-    //  Ref: https://www.baeldung.com/spring-boot-resilience4j
     public CompletableFuture<ResponseEntity<String>> handleRequest(
             @Nonnull final String deviceToken,
             @Nonnull final PushNotificationMessage pushNotificationMessage
