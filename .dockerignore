@@ -1,0 +1,12 @@
+.git/
+.gitignore
+.gradle/
+.idea/
+.vscode/
+build/
+lib/
+.env
+*.iml
+*.p12
+apnsCertificatePassword.txt
+fcmServiceAccountKey.json

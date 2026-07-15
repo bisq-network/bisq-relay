@@ -11,13 +11,26 @@ services:
     ports:
       - "127.0.0.1:9400:9400"   # local host access to actuator
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:9400/actuator/health" ]
+      test: [ "CMD", "curl", "-fsS", "http://localhost:9400/actuator/health/readiness" ]
       interval: 10s
       timeout: 3s
       retries: 10
+      start_period: 30s
+    volumes:
+      - ${BISQ_RELAY_APNS_CERTIFICATE_FILE}:/run/secrets/apnsCertificate.p12:ro
+      - ${BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE}:/run/secrets/apnsCertificatePassword.txt:ro
+      - ${BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE}:/run/secrets/fcmServiceAccountKey.json:ro
     environment:
       SERVER_ADDRESS: "0.0.0.0"
       MANAGEMENT_SERVER_ADDRESS: "0.0.0.0"
+      BISQ_RELAY_APNS_BUNDLE_ID: "${BISQ_RELAY_APNS_BUNDLE_ID:-}"
+      BISQ_RELAY_APNS_CERTIFICATE_FILE: "/run/secrets/apnsCertificate.p12"
+      BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE: "/run/secrets/apnsCertificatePassword.txt"
+      BISQ_RELAY_APNS_USE_SANDBOX: "${BISQ_RELAY_APNS_USE_SANDBOX:-true}"
+      BISQ_RELAY_FCM_ENABLED: "${BISQ_RELAY_FCM_ENABLED:-true}"
+      BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE: "/run/secrets/fcmServiceAccountKey.json"
+      BISQ_RELAY_FCM_FIREBASE_URL: "${BISQ_RELAY_FCM_FIREBASE_URL:-}"
+      BISQ_RELAY_FCM_DATA_ONLY: "${BISQ_RELAY_FCM_DATA_ONLY:-true}"
     restart: unless-stopped
 
   nginx:

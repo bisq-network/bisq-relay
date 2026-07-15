@@ -126,6 +126,28 @@ You can still use Java system properties if needed:
   ./build/install/bisq-relay/bin/bisq-relay
 ```
 
+#### Environment File
+
+Environment variables can be defined in a local `.env` file. For example:
+
+```dotenv
+BISQ_RELAY_APNS_BUNDLE_ID=your.app.bundle.id
+BISQ_RELAY_APNS_CERTIFICATE_FILE=/path/to/apnsCertificate.p12
+BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE=/path/to/apnsCertificatePassword.txt
+BISQ_RELAY_APNS_USE_SANDBOX=true
+
+BISQ_RELAY_FCM_ENABLED=true
+BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE=/path/to/fcmServiceAccountKey.json
+BISQ_RELAY_FCM_FIREBASE_URL=https://your-app.firebaseio.com
+BISQ_RELAY_FCM_DATA_ONLY=true
+```
+
+Then source the `.env` file before running the application:
+
+```sh
+set -a && source .env && set +a && ./build/install/bisq-relay/bin/bisq-relay
+```
+
 ## Production Deployment
 
 For a production deployment, run nginx in front of `bisq-relay` as a local request gate.
@@ -176,6 +198,14 @@ The expected deployment is:
 
 ## Deploying a Local Test Environment
 
+### Requirements
+
+Environment variables should be defined in a local `.env` file in the same directory as
+`docker-compose.yml`. See the [Environment File](#environment-file) section for example content.
+
+### Deployment
+
+The docker-compose file uses the `bisq-relay` image built from the source code.
 Use the following docker command to deploy a complete local test environment:
 
 ```shell
@@ -184,9 +214,9 @@ docker compose up --build
 
 Once deployed, the following will be available:
 
-- Application REST API through nginx: http://127.0.0.1:8080 (e.g.
+- Application REST API through nginx: http://127.0.0.1:8080 (e.g.,
   `POST http://127.0.0.1:8080/v1/apns/device/{deviceToken}`)
-- Application management interface: http://127.0.0.1:9400 (e.g. http://127.0.0.1:9400/actuator/info)
+- Application management interface: http://127.0.0.1:9400 (e.g., http://127.0.0.1:9400/actuator/info)
 - Grafana: http://127.0.0.1:3000
 - Prometheus: http://127.0.0.1:9090
 
