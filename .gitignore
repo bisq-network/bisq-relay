@@ -1,7 +1,10 @@
-.gradle
-.idea
-build
-lib
-/*.json
-/*.txt
-/*.p12
+.gradle/
+.idea/
+.vscode/
+build/
+lib/
+.env
+*.iml
+*.p12
+apnsCertificatePassword.txt
+fcmServiceAccountKey.json
