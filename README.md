@@ -222,12 +222,111 @@ Once deployed, the following will be available:
 
 ## API Reference
 
+The bisq-relay exposes provider-specific endpoints for sending encrypted push notification payloads to APNs and FCM.
+
+### Endpoints
+
+| Method | Endpoint                        | Provider | Description                               |
+|--------|---------------------------------|----------|-------------------------------------------|
+| `POST` | `/v1/apns/device/{deviceToken}` | APNs     | Sends a notification to an iOS device     |
+| `POST` | `/v1/fcm/device/{deviceToken}`  | FCM      | Sends a notification to an Android device |
+
+Both endpoints use the same request body format.
+
+### Path Parameters
+
+| Parameter     | Type   | Required | Description                                                                                                                                         |
+|---------------|--------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `deviceToken` | string | yes      | Provider-specific device token identifying the target device. For APNs, this is the APNs device token. For FCM, this is the FCM registration token. |
+
+### Headers
+
+| Header         | Required | Value              | Description                                        |
+|----------------|----------|--------------------|----------------------------------------------------|
+| `Content-Type` | yes      | `application/json` | Request body must be JSON.                         |
+| `Accept`       | no       | `application/json` | Indicates that the client accepts a JSON response. |
+
 ### Request Body
 
-The `POST /v1/apns/device/{deviceToken}` and `POST /v1/fcm/device/{deviceToken}` endpoints accept a JSON body with the following fields:
+```json
+{
+  "encrypted": "...",
+  "isUrgent": false,
+  "isMutableContent": false
+}
+```
 
-| Field              | Type    | Required | Default | Description                                                                                                                                                                                                                  |
-|--------------------|---------|----------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `encrypted`        | string  | yes      | —       | Encrypted notification payload                                                                                                                                                                                               |
-| `isUrgent`         | boolean | no       | `false` | When `true`, sends as high-priority alert; when `false`, sends as background notification                                                                                                                                    |
-| `isMutableContent` | boolean | no       | `false` | APNs only. When `true`, sets the `mutable-content` flag in the APNs payload, allowing the iOS app's Notification Service Extension (NSE) to modify the notification content before display (e.g. for client-side decryption) |
+| Field              | Type    | Required | Default | Description                                                                                                                                                                                                                                                   |
+|--------------------|---------|----------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `encrypted`        | string  | yes      | —       | Encrypted notification payload to relay to the target device. This value should already be encrypted by the sender; the bisq-relay does not decrypt, validate, or interpret the encrypted message contents.                                                   |
+| `isUrgent`         | boolean | no       | `false` | When `true`, sends the notification as a high-priority alert. When `false`, sends it as a background notification where supported by the provider.                                                                                                            |
+| `isMutableContent` | boolean | no       | `false` | APNs only. When `true`, sets the `mutable-content` flag in the APNs payload, allowing the iOS app's Notification Service Extension to modify the notification before display, for example for client-side decryption. This field is ignored for FCM requests. |
+
+### Example APNs Request
+
+```bash
+curl -X POST "http://127.0.0.1:8080/v1/apns/device/<device-token>" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "encrypted": "<encrypted-payload>",
+    "isUrgent": true,
+    "isMutableContent": true
+  }'
+```
+
+### Example FCM Request
+
+```bash
+curl -X POST "http://127.0.0.1:8080/v1/fcm/device/<device-token>" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "encrypted": "<encrypted-payload>",
+    "isUrgent": false
+  }'
+```
+
+### Successful Response
+
+If the provider accepts the notification, the bisq-relay returns `200 OK` with a JSON response body.
+
+```json
+{
+  "wasAccepted": true,
+  "isUnregistered": false
+}
+```
+
+### Provider Rejection Response
+
+If the request is valid but the push provider rejects the notification, the relay returns `400 Bad Request` with
+provider result details when available.
+
+```json
+{
+  "wasAccepted": false,
+  "errorCode": "BadDeviceToken",
+  "errorMessage": "The device token is invalid.",
+  "isUnregistered": true
+}
+```
+
+| Field            | Type    | Description                                                                                                                                                                         |
+|------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `wasAccepted`    | boolean | Indicates whether the upstream push provider accepted the notification.                                                                                                             |
+| `errorCode`      | string  | Provider error code, when available. Omitted when there is no provider error code.                                                                                                  |
+| `errorMessage`   | string  | Provider error message, when available. Omitted when there is no provider error message.                                                                                            |
+| `isUnregistered` | boolean | Indicates whether the target device token is no longer registered with the push provider. Clients should treat this as a signal that the token may need to be removed or refreshed. |
+
+### Request Error Responses
+
+Request-level errors return an HTTP status code with an empty response body.
+
+| Status                       | Cause                                                                                               |
+|------------------------------|-----------------------------------------------------------------------------------------------------|
+| `400 Bad Request`            | Missing or invalid request body, malformed JSON, validation failure, or invalid request parameters. |
+| `404 Not Found`              | Endpoint does not exist or the device token path parameter is missing.                              |
+| `405 Method Not Allowed`     | Endpoint exists but does not support the requested HTTP method.                                     |
+| `415 Unsupported Media Type` | Request body does not use `Content-Type: application/json`.                                         |
+| `500 Internal Server Error`  | Unexpected relay error while processing the notification.                                           |
