@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
@@ -58,10 +59,7 @@ public abstract class PushNotificationController {
                         body = objectMapper.writeValueAsString(notificationResult);
                     } catch (JsonProcessingException e) {
                         LOG.error("Unable to serialize notification result; {}\n{}", e.getMessage(), notificationResult);
-                        return ResponseEntity
-                                .internalServerError()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .body("");
+                        return serverErrorResponse();
                     }
 
                     if (notificationResult.wasAccepted()) {
@@ -76,9 +74,15 @@ public abstract class PushNotificationController {
                             .contentType(MediaType.APPLICATION_JSON)
                             .body(body);
                 })
-                .exceptionally(cause -> ResponseEntity
-                        .internalServerError()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(""));
+                .exceptionally(cause -> {
+                    LOG.error("Unable to send push notification", cause);
+                    return serverErrorResponse();
+                });
+    }
+
+    private ResponseEntity<String> serverErrorResponse() {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(null);
     }
 }
