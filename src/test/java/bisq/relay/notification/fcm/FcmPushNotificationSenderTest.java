@@ -20,13 +20,15 @@ package bisq.relay.notification.fcm;
 import bisq.relay.config.FcmProperties;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
+import bisq.relay.notification.resilience.ResilienceAsyncExecutor;
 import com.google.api.core.SettableApiFuture;
 import com.google.firebase.messaging.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -35,6 +37,9 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -55,16 +60,29 @@ class FcmPushNotificationSenderTest {
     private FirebaseMessaging firebaseMessaging;
     private FcmPushNotificationSender fcmSender;
 
+    @Mock
+    private ResilienceAsyncExecutor resilienceAsyncExecutor;
+
     private PushNotificationResult pushNotificationResult;
     private Message sentPushNotification;
 
     @BeforeEach
     void setup() {
+        when(resilienceAsyncExecutor.execute(any(), any(), any()))
+                .thenAnswer(inv -> {
+                    Supplier<? extends CompletionStage<PushNotificationResult>> supplier =
+                            inv.getArgument(1);
+                    return supplier.get().toCompletableFuture();
+                });
+
+        fcmSender = new FcmPushNotificationSender(
+                firebaseMessaging, new FcmPushNotificationBuilder(new FcmProperties()), resilienceAsyncExecutor);
+
         givenSendDataOnlyIs(true);
     }
 
-    @ParameterizedTest
-    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    @ParameterizedTest(name = "{index} => urgent={0}; sendDataOnly={1}")
+    @MethodSource("provideUrgentAndSendDataOnly")
     void whenPushNotificationIsAcceptedByFcm_thenSuccessfulResultReturned(
             final boolean urgent, final boolean sendDataOnly)
             throws IllegalAccessException, NoSuchFieldException {
@@ -78,10 +96,19 @@ class FcmPushNotificationSenderTest {
         verifyNoMoreInteractions(firebaseMessaging);
     }
 
-    @ParameterizedTest
-    @CsvSource({"INVALID_ARGUMENT,false", "UNREGISTERED,true"})
+    private static Stream<Arguments> provideUrgentAndSendDataOnly() {
+        return Stream.of(
+                Arguments.of(true, true),
+                Arguments.of(true, false),
+                Arguments.of(false, true),
+                Arguments.of(false, false)
+        );
+    }
+
+    @ParameterizedTest(name = "{index} => rejectionReason={0}; isUnregistered={1}")
+    @MethodSource("provideRejectionAndRegistration")
     void whenPushNotificationIsRejectedByFcm_thenErrorResultReturned(
-            final String rejectionReason, final boolean isUnregistered)
+            final FcmRejectionReason rejectionReason, final boolean isUnregistered)
             throws NoSuchFieldException, IllegalAccessException {
 
         givenFcmWillRejectPushNotifications(rejectionReason);
@@ -90,6 +117,14 @@ class FcmPushNotificationSenderTest {
         thenThePushNotificationWasNotAccepted(rejectionReason, isUnregistered);
 
         verifyNoMoreInteractions(firebaseMessaging);
+    }
+
+    private static Stream<Arguments> provideRejectionAndRegistration() {
+        return Stream.of(
+                Arguments.of(FcmRejectionReason.INVALID_ARGUMENT, false),
+                Arguments.of(FcmRejectionReason.UNREGISTERED, true),
+                Arguments.of(FcmRejectionReason.SENDER_ID_MISMATCH, false)
+        );
     }
 
     @Test
@@ -114,9 +149,9 @@ class FcmPushNotificationSenderTest {
         when(firebaseMessaging.sendAsync(isA(Message.class))).thenReturn(apiFuture);
     }
 
-    private void givenFcmWillRejectPushNotifications(final String messagingErrorCode) {
+    private void givenFcmWillRejectPushNotifications(final FcmRejectionReason rejectionReason) {
         FirebaseMessagingException invalidArgumentException = mock(FirebaseMessagingException.class);
-        when(invalidArgumentException.getMessagingErrorCode()).thenReturn(MessagingErrorCode.valueOf(messagingErrorCode));
+        when(invalidArgumentException.getMessagingErrorCode()).thenReturn(rejectionReason.messagingErrorCode());
 
         SettableApiFuture<String> apiFuture = SettableApiFuture.create();
         apiFuture.setException(invalidArgumentException);
@@ -135,7 +170,7 @@ class FcmPushNotificationSenderTest {
         FcmProperties properties = new FcmProperties();
         properties.setSendDataOnly(sendDataOnly);
         FcmPushNotificationBuilder fcmPushNotificationBuilder = new FcmPushNotificationBuilder(properties);
-        fcmSender = new FcmPushNotificationSender(firebaseMessaging, fcmPushNotificationBuilder);
+        fcmSender = new FcmPushNotificationSender(firebaseMessaging, fcmPushNotificationBuilder, resilienceAsyncExecutor);
     }
 
     private void whenSendingAPushNotification(final boolean urgent) {
@@ -149,11 +184,15 @@ class FcmPushNotificationSenderTest {
 
     private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent)
             throws NoSuchFieldException, IllegalAccessException {
+
         thenTheSentPushNotificationIsCorrectlyPopulated(urgent, true);
     }
 
     private void thenTheSentPushNotificationIsCorrectlyPopulated(final boolean urgent, final boolean sendDataOnly)
             throws NoSuchFieldException, IllegalAccessException {
+
+        PushNotificationMessage pushNotificationMessage = new PushNotificationMessage("foo", urgent, false);
+
         assertThat(MessageUtil.getMessageToken(sentPushNotification)).isEqualTo(DEVICE_TOKEN);
         assertThat(MessageUtil.getMessageData(sentPushNotification)).isEqualTo(Map.of("encrypted", "foo"));
 
@@ -162,6 +201,7 @@ class FcmPushNotificationSenderTest {
                 String.format("%ss", Duration.ofDays(FcmPushNotificationBuilder.TTL_DAYS).toSeconds()));
         assertThat(AndroidConfigUtil.getPriority(androidConfig)).isEqualTo(
                 urgent ? AndroidConfig.Priority.HIGH.name().toLowerCase() : AndroidConfig.Priority.NORMAL.name().toLowerCase());
+        assertThat(AndroidConfigUtil.getCollapseKey(androidConfig)).isEqualTo(pushNotificationMessage.coalescingKey());
 
         Notification notification = MessageUtil.getMessageNotification(sentPushNotification);
         if (sendDataOnly) {
@@ -181,9 +221,12 @@ class FcmPushNotificationSenderTest {
         assertThat(pushNotificationResult.isUnregistered()).isFalse();
     }
 
-    private void thenThePushNotificationWasNotAccepted(final String expectedErrorCode, final boolean isUnregistered) {
+    private void thenThePushNotificationWasNotAccepted(
+            final FcmRejectionReason rejectionReason,
+            final boolean isUnregistered
+    ) {
         assertThat(pushNotificationResult.wasAccepted()).isFalse();
-        assertThat(pushNotificationResult.errorCode()).isEqualTo(expectedErrorCode);
+        assertThat(pushNotificationResult.errorCode()).isEqualTo(rejectionReason.messagingErrorCode().name());
         assertThat(pushNotificationResult.errorMessage()).isNull();
         assertThat(pushNotificationResult.isUnregistered()).isEqualTo(isUnregistered);
     }

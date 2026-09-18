@@ -15,7 +15,7 @@
  * along with Bisq. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package bisq.relay.notification.fcm;
+package bisq.relay.notification.apns;
 
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
@@ -26,12 +26,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
@@ -43,18 +43,19 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
-class FcmPushNotificationControllerTest {
-    @MockBean
-    private FcmPushNotificationSender fcmSender;
+@ActiveProfiles("integrationtest")
+class ApnsPushNotificationControllerIT {
+    @MockitoBean
+    private ApnsPushNotificationSender apnsSender;
 
-    @SpyBean
+    @MockitoSpyBean
     private ObjectMapper objectMapper;
 
     @Autowired
@@ -72,21 +73,22 @@ class FcmPushNotificationControllerTest {
     }
 
     @Test
-    void whenSendFcmNotificationWithMissingToken_thenNotFoundResponseReturned() throws Exception {
+    void whenSendApnsNotificationWithMissingToken_thenNotFoundResponseReturned() throws Exception {
         RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .post("/v1/fcm/device/")
+                .post("/v1/apns/device/")
                 .headers(httpHeaders)
-                .contentType(MediaType.APPLICATION_JSON);
+                .accept(MediaType.APPLICATION_JSON);
         MvcResult result = mockMvc.perform(requestBuilder).andReturn();
         assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
         assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
     }
 
     @Test
-    void whenSendFcmNotificationWithMissingBody_thenBadRequestResponseReturned() throws Exception {
+    void whenSendApnsNotificationWithMissingBody_thenBadRequestResponseReturned() throws Exception {
         RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .post("/v1/fcm/device/{deviceToken}", deviceToken)
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
                 .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON);
         MvcResult result = mockMvc.perform(requestBuilder).andReturn();
         assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
@@ -94,8 +96,73 @@ class FcmPushNotificationControllerTest {
     }
 
     @Test
-    void whenSendValidFcmNotification_thenSuccessfulResponseReturned() throws Exception {
-        givenFcmNotificationWillBeAccepted();
+    void whenSendApnsNotificationWithMissingEncrypted_thenBadRequestResponseReturned() throws Exception {
+        String bodyMissingEncrypted = """
+                {"isUrgent":true}
+                """;
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyMissingEncrypted);
+
+        MvcResult result = mockMvc.perform(requestBuilder).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+
+        verifyNoInteractions(apnsSender);
+    }
+
+    @Test
+    void whenSendApnsNotificationWithBlankEncrypted_thenBadRequestResponseReturned() throws Exception {
+        String bodyBlankEncrypted = """
+                {"encrypted":"","isUrgent":true}
+                """;
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyBlankEncrypted);
+
+        MvcResult result = mockMvc.perform(requestBuilder).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(result.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+
+        verifyNoInteractions(apnsSender);
+    }
+
+    @Test
+    void whenSendApnsNotificationWithoutMutableContent_thenSuccessfulResponseReturned() throws Exception {
+        givenApnsNotificationWillBeAccepted();
+
+        // Simulate a request from an older client that does not include isMutableContent
+        String jsonWithoutMutableContent = "{\"encrypted\":\"encrypted\",\"isUrgent\":true}";
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonWithoutMutableContent);
+        MvcResult mvcResult = mockMvc.perform(requestBuilder)
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
+                .andReturn();
+        assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+        assertThat(asyncResult.getResponse().getContentAsString()).isEqualTo("{\"wasAccepted\":true,\"isUnregistered\":false}");
+    }
+
+    @Test
+    void whenSendValidApnsNotification_thenSuccessfulResponseReturned() throws Exception {
+        givenApnsNotificationWillBeAccepted();
 
         ObjectMapper mapper = new ObjectMapper();
         String serializedNotificationRequest = mapper.writeValueAsString(
@@ -105,8 +172,9 @@ class FcmPushNotificationControllerTest {
                         false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .post("/v1/fcm/device/{deviceToken}", deviceToken)
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
                 .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(serializedNotificationRequest);
         MvcResult mvcResult = mockMvc.perform(requestBuilder)
@@ -120,8 +188,8 @@ class FcmPushNotificationControllerTest {
     }
 
     @Test
-    void whenSendInvalidFcmNotification_thenBadRequestResponseReturned() throws Exception {
-        givenFcmNotificationWillBeRejected();
+    void whenSendInvalidApnsNotification_thenBadRequestResponseReturned() throws Exception {
+        givenApnsNotificationWillBeRejected();
 
         ObjectMapper mapper = new ObjectMapper();
         String serializedNotificationRequest = mapper.writeValueAsString(
@@ -131,8 +199,9 @@ class FcmPushNotificationControllerTest {
                         false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .post("/v1/fcm/device/{deviceToken}", deviceToken)
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
                 .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(serializedNotificationRequest);
         MvcResult mvcResult = mockMvc.perform(requestBuilder)
@@ -142,12 +211,12 @@ class FcmPushNotificationControllerTest {
                 .andReturn();
         assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
-        assertThat(asyncResult.getResponse().getContentAsString()).isEqualTo("{\"wasAccepted\":false,\"errorCode\":\"UNREGISTERED\",\"isUnregistered\":true}");
+        assertThat(asyncResult.getResponse().getContentAsString()).isEqualTo("{\"wasAccepted\":false,\"errorCode\":\"Unregistered\",\"isUnregistered\":true}");
     }
 
     @Test
-    void whenFailedToSendNotificationToFcm_thenServerErrorResponseReturned() throws Exception {
-        givenFcmIsUnreachable();
+    void whenFailedToSendNotificationToApns_thenServerErrorResponseReturned() throws Exception {
+        givenApnsIsUnreachable();
 
         ObjectMapper mapper = new ObjectMapper();
         String serializedNotificationRequest = mapper.writeValueAsString(
@@ -157,35 +226,7 @@ class FcmPushNotificationControllerTest {
                         false));
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .post("/v1/fcm/device/{deviceToken}", deviceToken)
-                .headers(httpHeaders)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(serializedNotificationRequest);
-        MvcResult mvcResult = mockMvc.perform(requestBuilder)
-                .andExpect(request().asyncStarted())
-                .andReturn();
-        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
-                .andReturn();
-        assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
-        assertThat(asyncResult.getResponse().getContentAsString()).isEmpty();
-    }
-
-    @Test
-    void whenJsonProcessingExceptionWithPushNotificationResult_thenServerErrorResponseReturned() throws Exception {
-        givenFcmNotificationWillBeAccepted();
-
-        when(objectMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("JsonProcessingException") {});
-
-        ObjectMapper mapper = new ObjectMapper();
-        String serializedNotificationRequest = mapper.writeValueAsString(
-                new PushNotificationMessage(
-                        "encrypted",
-                        true,
-                        false));
-
-        RequestBuilder requestBuilder = MockMvcRequestBuilders
-                .post("/v1/fcm/device/{deviceToken}", deviceToken)
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
                 .headers(httpHeaders)
                 .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -200,24 +241,54 @@ class FcmPushNotificationControllerTest {
         assertThat(asyncResult.getResponse().getContentAsString()).isEmpty();
     }
 
-    private void givenFcmNotificationWillBeAccepted() {
+    @Test
+    void whenJsonProcessingExceptionWithPushNotificationResult_thenServerErrorResponseReturned() throws Exception {
+        givenApnsNotificationWillBeAccepted();
+
+        when(objectMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("JsonProcessingException") {
+        });
+
+        ObjectMapper mapper = new ObjectMapper();
+        String serializedNotificationRequest = mapper.writeValueAsString(
+                new PushNotificationMessage(
+                        "encrypted",
+                        true,
+                        false));
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders
+                .post("/v1/apns/device/{deviceToken}", deviceToken)
+                .headers(httpHeaders)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(serializedNotificationRequest);
+        MvcResult mvcResult = mockMvc.perform(requestBuilder)
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        MvcResult asyncResult = mockMvc.perform(asyncDispatch(mvcResult))
+                .andReturn();
+        assertThat(asyncResult.getResponse().getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        assertThat(asyncResult.getResponse().getContentType()).isEqualTo(MediaType.APPLICATION_JSON_VALUE);
+        assertThat(asyncResult.getResponse().getContentAsString()).isEmpty();
+    }
+
+    private void givenApnsNotificationWillBeAccepted() {
         CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
         completableFuture.complete(new PushNotificationResult(true, null, null, false));
-        when(fcmSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
+        when(apnsSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
                 .thenReturn(completableFuture);
     }
 
-    private void givenFcmNotificationWillBeRejected() {
+    private void givenApnsNotificationWillBeRejected() {
         CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(new PushNotificationResult(false, "UNREGISTERED", null, true));
-        when(fcmSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
+        completableFuture.complete(new PushNotificationResult(false, "Unregistered", null, true));
+        when(apnsSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
                 .thenReturn(completableFuture);
     }
 
-    private void givenFcmIsUnreachable() {
+    private void givenApnsIsUnreachable() {
         CompletableFuture<PushNotificationResult> completableFuture = new CompletableFuture<>();
-        completableFuture.completeExceptionally(new IOException("Lost connection"));
-        when(fcmSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
+        completableFuture.completeExceptionally(new IOException("lost connection"));
+        when(apnsSender.sendNotification(isA(PushNotificationMessage.class), isA(String.class)))
                 .thenReturn(completableFuture);
     }
 }

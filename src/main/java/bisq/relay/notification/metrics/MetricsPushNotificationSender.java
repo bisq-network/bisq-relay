@@ -20,6 +20,8 @@ package bisq.relay.notification.metrics;
 import bisq.relay.notification.PushNotificationMessage;
 import bisq.relay.notification.PushNotificationResult;
 import bisq.relay.notification.PushNotificationSender;
+import bisq.relay.notification.apns.ApnsRejectionReason;
+import bisq.relay.notification.fcm.FcmRejectionReason;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.Nonnull;
@@ -135,24 +137,25 @@ final class MetricsPushNotificationSender implements PushNotificationSender {
         }
 
         if (PROVIDER_ID_APNS.equals(providerId)) {
-            return switch (errorCode) {
-                case "Unregistered", "BadDeviceToken" -> CODE_TOKEN;
-                case "TooManyRequests" -> CODE_THROTTLE;
-                case "PayloadTooLarge" -> CODE_PAYLOAD;
-                case "InternalServerError", "ServiceUnavailable" -> CODE_SERVER;
-                default -> CODE_OTHER;
-            };
+            return ApnsRejectionReason.fromCode(errorCode)
+                    .map(reason -> switch (reason) {
+                        case UNREGISTERED, BAD_DEVICE_TOKEN -> CODE_TOKEN;
+                        case TOO_MANY_REQUESTS -> CODE_THROTTLE;
+                        case PAYLOAD_TOO_LARGE -> CODE_PAYLOAD;
+                        case INTERNAL_SERVER_ERROR, SERVICE_UNAVAILABLE -> CODE_SERVER;
+                    })
+                    .orElse(CODE_OTHER);
         }
 
         if (PROVIDER_ID_FCM.equals(providerId)) {
-            return switch (errorCode) {
-                case "UNREGISTERED", "INVALID_ARGUMENT" -> CODE_TOKEN;
-                case "QUOTA_EXCEEDED" -> CODE_THROTTLE;
-                case "MESSAGE_TOO_BIG" -> CODE_PAYLOAD;
-                case "UNAVAILABLE", "INTERNAL" -> CODE_SERVER;
-                case "SENDER_ID_MISMATCH" -> CODE_AUTH;
-                default -> CODE_OTHER;
-            };
+            return FcmRejectionReason.fromCode(errorCode)
+                    .map(reason -> switch (reason) {
+                        case UNREGISTERED, INVALID_ARGUMENT -> CODE_TOKEN;
+                        case QUOTA_EXCEEDED -> CODE_THROTTLE;
+                        case UNAVAILABLE, INTERNAL -> CODE_SERVER;
+                        case SENDER_ID_MISMATCH -> CODE_AUTH;
+                    })
+                    .orElse(CODE_OTHER);
         }
 
         return CODE_OTHER;

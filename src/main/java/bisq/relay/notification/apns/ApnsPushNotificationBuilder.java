@@ -25,8 +25,7 @@ import com.eatthepath.pushy.apns.util.SimpleApnsPayloadBuilder;
 import com.eatthepath.pushy.apns.util.SimpleApnsPushNotification;
 import com.eatthepath.pushy.apns.util.TokenUtil;
 import jakarta.annotation.Nonnull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.annotation.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -36,14 +35,15 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 @Component
 public class ApnsPushNotificationBuilder {
-    private static final Logger LOG = LoggerFactory.getLogger(ApnsPushNotificationBuilder.class);
+
     // Use the equivalent maximum time-to-live duration of an Android message (4 weeks)
     public static final long INVALIDATION_TIME_PERIOD_DAYS = 28;
 
     public SimpleApnsPushNotification buildPushNotification(
             @Nonnull final PushNotificationMessage pushNotificationMessage,
             @Nonnull final String deviceToken,
-            @Nonnull final String topic) {
+            @Nonnull final String topic,
+            @Nullable final String collapseId) {
         Objects.requireNonNull(pushNotificationMessage);
         Objects.requireNonNull(deviceToken);
         Objects.requireNonNull(topic);
@@ -51,7 +51,6 @@ public class ApnsPushNotificationBuilder {
         final PushType pushType = pushNotificationMessage.isUrgent() ? PushType.ALERT : PushType.BACKGROUND;
         final DeliveryPriority deliveryPriority =
                 pushNotificationMessage.isUrgent() ? DeliveryPriority.IMMEDIATE : DeliveryPriority.CONSERVE_POWER;
-        final String collapseId = pushNotificationMessage.isUrgent() ? "notification" : null;
         final Instant invalidationTime = Instant.now().plus(INVALIDATION_TIME_PERIOD_DAYS, DAYS);
 
         return new SimpleApnsPushNotification(
@@ -69,16 +68,11 @@ public class ApnsPushNotificationBuilder {
 
         ApnsPayloadBuilder payloadBuilder = new SimpleApnsPayloadBuilder()
                 .setLocalizedAlertMessage("notification")
-                .setContentAvailable(true);
+                .setContentAvailable(true)
+                .addCustomProperty("encrypted", pushNotificationMessage.encrypted());
 
         if (pushNotificationMessage.isMutableContent()) {
             payloadBuilder.setMutableContent(true);
-        }
-
-        if (pushNotificationMessage.encrypted() != null) {
-            payloadBuilder.addCustomProperty("encrypted", pushNotificationMessage.encrypted());
-        } else {
-            LOG.warn("PushNotificationMessage is missing encrypted content: {}", pushNotificationMessage);
         }
 
         return payloadBuilder.build();

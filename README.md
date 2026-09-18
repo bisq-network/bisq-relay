@@ -8,29 +8,13 @@ More documentation can be found [here](https://github.com/bisq-network/bisqremot
 
 ## Building the Source Code
 
-### Clone the Repository
-
-This repository has a dependency on git submodules [bisq](https://github.com/bisq-network/bisq)
-and [bisq-gradle](https://github.com/bisq-network/bisq-gradle).  
-There are two ways to clone it before it can be built:
-
-1. Use the --recursive option in the clone command:
-```sh
-  git clone --recursive  https://github.com/bisq-network/bisq-relay.git
-```
-
-2. Do a normal clone and pull down the bisq repo dependency with two git submodule commands:
-```sh
-  git clone https://github.com/bisq-network/bisq-relay.git
-  cd bisq-relay
-  git submodule init
-  git submodule update
-```
-
 ### Build the Project
 
-```sh
-  ./gradlew clean build
+Build the project using the `installDist` Gradle task, which creates a local runnable distribution under
+`build/install/` and generates the startup script used to run the service.
+
+```shell
+./gradlew clean installDist
 ```
 
 ## Running the Service
@@ -62,7 +46,7 @@ corresponding password stored within a `apnsCertificatePassword.txt` file.
 
 > Note, the APNs certificate needs to be manually renewed every year.
 
-In order to obtain the APNs certificate, the following will need to be done on macOS:
+To get the APNs certificate, the following will need to be done on macOS:
 1. Create and download a cer file from https://developer.apple.com/account/ios/certificate/?teamId=XXXXXX
 2. Add the *.cer file to your keychain.
 3. In keychain, go to "My certificates". Expand the Apple Push Service certificate and select both lines.
@@ -74,12 +58,12 @@ The service is configured via environment variables. The following variables are
 
 #### APNs Configuration
 
-| Environment Variable | Description | Default |
-|---------------------|-------------|---------|
-| `BISQ_RELAY_APNS_BUNDLE_ID` | iOS app bundle identifier (required) | _(none)_ |
-| `BISQ_RELAY_APNS_CERTIFICATE_FILE` | Path to .p12 certificate file (required) | _(none)_ |
+| Environment Variable                        | Description                                  | Default  |
+|---------------------------------------------|----------------------------------------------|----------|
+| `BISQ_RELAY_APNS_BUNDLE_ID`                 | iOS app bundle identifier (required)         | _(none)_ |
+| `BISQ_RELAY_APNS_CERTIFICATE_FILE`          | Path to .p12 certificate file (required)     | _(none)_ |
 | `BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE` | Path to certificate password file (required) | _(none)_ |
-| `BISQ_RELAY_APNS_USE_SANDBOX` | Use APNs sandbox environment | `true` |
+| `BISQ_RELAY_APNS_USE_SANDBOX`               | Use APNs sandbox environment                 | `true`   |
 
 > **Note:** `BISQ_RELAY_APNS_USE_SANDBOX` defaults to `true` for safety. Production deployments must explicitly set this to `false`.
 
@@ -94,7 +78,8 @@ The service is configured via environment variables. The following variables are
 
 ### Run the Script
 
-After building the project, a `bisq-relay` script will be generated at the root of the project.
+After building the project using the `installDist` Gradle task, a script will be generated at
+[build/install/bisq-relay/bin/bisq-relay](build/install/bisq-relay/bin/bisq-relay).
 
 #### Development/Sandbox Mode
 
@@ -103,7 +88,7 @@ For development with APNs sandbox:
   export BISQ_RELAY_APNS_BUNDLE_ID="your.app.bundle.id"
   export BISQ_RELAY_APNS_CERTIFICATE_FILE=apnsCertificate.p12
   export BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE=apnsCertificatePassword.txt
-  ./bisq-relay
+  ./build/install/bisq-relay/bin/bisq-relay
 ```
 
 #### Production Mode
@@ -114,7 +99,7 @@ For production deployment:
   export BISQ_RELAY_APNS_USE_SANDBOX=false
   export BISQ_RELAY_APNS_CERTIFICATE_FILE=/path/to/apnsCertificate.production.p12
   export BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE=/path/to/apnsCertificatePassword.txt
-  ./bisq-relay
+  ./build/install/bisq-relay/bin/bisq-relay
 ```
 
 #### With FCM Enabled
@@ -125,7 +110,7 @@ To also enable FCM (Android) push notifications:
   export BISQ_RELAY_APNS_USE_SANDBOX=false
   export BISQ_RELAY_FCM_ENABLED=true
   export BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE=/path/to/fcmServiceAccountKey.json
-  ./bisq-relay
+  ./build/install/bisq-relay/bin/bisq-relay
 ```
 
 #### Legacy Configuration (Deprecated)
@@ -133,15 +118,15 @@ To also enable FCM (Android) push notifications:
 You can still use Java system properties if needed:
 ```sh
   export BISQ_RELAY_OPTS="-Dapns.bundleId=your.app.bundle.id -Dapns.useSandbox=false"
-  ./bisq-relay
+  ./build/install/bisq-relay/bin/bisq-relay
 ```
 
 ## Deploying a Local Test Environment
 
 Use the following docker command to deploy a complete local test environment:
 
-```sh
-  docker compose up --build
+```shell
+docker compose up --build
 ```
 
 Once deployed, the following will be available:

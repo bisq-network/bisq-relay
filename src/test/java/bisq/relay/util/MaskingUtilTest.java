@@ -27,17 +27,17 @@ class MaskingUtilTest {
     @Test
     void testMaskSensitive_WithDefaultValues() {
         SoftAssertions.assertSoftly(softly -> {
-            softly.assertThat(MaskingUtil.maskSensitive("1234567890")).isEqualTo("**********");
+            softly.assertThat(MaskingUtil.maskSensitive("1234567890")).isEqualTo("****");
             softly.assertThat(MaskingUtil.maskSensitive("secretpassword")).isEqualTo("secre****sword");
-            softly.assertThat(MaskingUtil.maskSensitive("short")).isEqualTo("*****");
+            softly.assertThat(MaskingUtil.maskSensitive("short")).isEqualTo("****");
         });
     }
 
     @Test
     void testMaskSensitive_WithCustomMaskChar() {
         SoftAssertions.assertSoftly(softly -> {
-            softly.assertThat(MaskingUtil.maskSensitive("1234567890", 2, '#')).isEqualTo("12######90");
-            softly.assertThat(MaskingUtil.maskSensitive("secretpassword", 3, '$')).isEqualTo("sec$$$$$$$$ord");
+            softly.assertThat(MaskingUtil.maskSensitive("1234567890", 2, '#')).isEqualTo("12####90");
+            softly.assertThat(MaskingUtil.maskSensitive("secretpassword", 3, '$')).isEqualTo("sec$$$$ord");
             softly.assertThat(MaskingUtil.maskSensitive("short", 2, '?')).isEqualTo("sh?rt");
         });
     }
@@ -58,7 +58,7 @@ class MaskingUtilTest {
     @Test
     void testMaskSensitive_WhenOnlyFewCharactersAreVisible() {
         SoftAssertions.assertSoftly(softly -> {
-            softly.assertThat(MaskingUtil.maskSensitive("abcdefxyz", 2)).isEqualTo("ab*****yz");
+            softly.assertThat(MaskingUtil.maskSensitive("abcdefxyz", 2)).isEqualTo("ab****yz");
             softly.assertThat(MaskingUtil.maskSensitive("helloWorld", 3)).isEqualTo("hel****rld");
         });
     }
@@ -66,8 +66,14 @@ class MaskingUtilTest {
     @Test
     void testMaskSensitive_WhenVisibleCharactersExceedLength() {
         SoftAssertions.assertSoftly(softly -> {
-            softly.assertThat(MaskingUtil.maskSensitive("supersecure", 10)).isEqualTo("***********");
+            softly.assertThat(MaskingUtil.maskSensitive("supersecure", 10)).isEqualTo("****");
             softly.assertThat(MaskingUtil.maskSensitive("data", 5)).isEqualTo("****");
         });
+    }
+
+    @Test
+    void testMaskSensitive_WithVeryLongInput() {
+        String longInput = "66336" + "a".repeat(300) + "f5573";
+        assertThat(MaskingUtil.maskSensitive(longInput)).isEqualTo("66336****f5573");
     }
 }

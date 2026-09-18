@@ -24,6 +24,7 @@ import bisq.relay.notification.fcm.FcmPushNotificationController;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +34,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static bisq.relay.util.MaskingUtil.maskSensitive;
@@ -46,6 +46,7 @@ import static bisq.relay.util.MaskingUtil.maskSensitive;
 @RestController
 @Deprecated(since = "2.0", forRemoval = true)
 public class RelayController {
+
     private static final Logger LOG = LoggerFactory.getLogger(RelayController.class);
     // Used in Bisq app to check for success state. We won't want a code dependency just for that string,
     // so we keep it duplicated in core and here. Must not be changed.
@@ -64,30 +65,31 @@ public class RelayController {
 
     @GetMapping(value = "/relay")
     public CompletableFuture<String> relayNotification(
-            @RequestParam("isAndroid") final Optional<Boolean> isAndroid,
-            @RequestParam("token") final Optional<String> deviceTokenHex,
-            @RequestParam("msg") final Optional<String> encryptedMessageHex,
-            @RequestParam(value = "mutableContent", required = false) final Optional<Boolean> mutableContent,
+            @RequestParam(name = "isAndroid", defaultValue = "false") final boolean isAndroid,
+            @RequestParam(name = "token", required = false) final String deviceTokenHex,
+            @RequestParam(name = "msg", required = false) final String encryptedMessageHex,
+            @RequestParam(name = "mutableContent", defaultValue = "false") final boolean mutableContent,
             final HttpServletRequest httpRequest) {
 
         if (LOG.isInfoEnabled()) {
             LOG.info("Relaying notification; isAndroid={} token={} encryptedMessage={} mutableContent={}",
-                    isAndroid.orElse(null),
-                    maskSensitive(deviceTokenHex.orElse(null)),
-                    maskSensitive(encryptedMessageHex.orElse(null)),
-                    mutableContent.orElse(false));
+                    isAndroid,
+                    maskSensitive(deviceTokenHex),
+                    maskSensitive(encryptedMessageHex),
+                    mutableContent);
         }
 
         final String deviceToken = decodeDeviceToken(deviceTokenHex);
         final String encryptedMessage = decodeParameter(encryptedMessageHex, "msg");
 
         final PushNotificationMessage pushNotificationMessage = new PushNotificationMessage(
-                encryptedMessage, true, mutableContent.orElse(false));
+                encryptedMessage, true, mutableContent);
 
-        if (isAndroid.isPresent() && isAndroid.get().equals(true)) {
+        if (isAndroid) {
             if (fcmPushNotificationController == null) {
                 throw new BadArgumentsException("FCM is not enabled on this server");
             }
+
             return fcmPushNotificationController.sendFcmNotification(
                     deviceToken, pushNotificationMessage, httpRequest).thenApply(result -> {
                 if (result.getStatusCode().equals(HttpStatus.OK)) {
@@ -107,59 +109,59 @@ public class RelayController {
     }
 
     /**
-     * Extracts the device token, handling both Bisq v1 and Bisq2 formats.
-     *
+     * Extracts the device token, handling both Bisq v1 and Bisq v2 formats.
+     * <p>
      * Bisq v1 hex-encodes all parameters (including the token) before sending.
-     * Bisq2 sends the device token as-is (a hex string for APNs, or an opaque
+     * Bisq v2 sends the device token as-is (a hex string for APNs, or an opaque
      * string for FCM).
-     *
+     * <p>
      * To distinguish: we try hex-decoding the input. If the result is entirely
      * printable ASCII, it was hex-encoded (Bisq v1) and we return the decoded
      * value. If hex-decoding fails or produces non-printable bytes, the input
-     * is already the raw token (Bisq2) and we pass it through unchanged.
+     * is already the raw token (Bisq v2) and we pass it through unchanged.
      */
-    private String decodeDeviceToken(final Optional<String> deviceTokenHex) {
-        if (deviceTokenHex.isEmpty()) {
+    private String decodeDeviceToken(final String deviceTokenHex) {
+        if (deviceTokenHex == null || deviceTokenHex.isBlank()) {
             LOG.error("Missing token parameter");
             throw new BadArgumentsException("Missing token parameter");
         }
-        final String raw = deviceTokenHex.get();
+
         try {
-            final String decoded = new String(Hex.decodeHex(raw.toCharArray()), StandardCharsets.UTF_8);
-            if (isPrintableAscii(decoded)) {
+            final String decoded = new String(Hex.decodeHex(deviceTokenHex.toCharArray()), StandardCharsets.UTF_8);
+            if (StringUtils.isAsciiPrintable(decoded)) {
                 LOG.debug("Device token appears hex-encoded (Bisq v1 format), decoded to {} chars", decoded.length());
                 return decoded;
             }
         } catch (DecoderException e) {
             // Not valid hex — fall through to use raw value
         }
-        LOG.debug("Device token used as-is (Bisq2 format), {} chars", raw.length());
-        return raw;
+
+        LOG.debug("Device token used as-is (Bisq v2 format), {} chars", deviceTokenHex.length());
+        return deviceTokenHex;
     }
 
-    private static boolean isPrintableAscii(final String s) {
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c < 0x20 || c > 0x7E) {
-                return false;
-            }
-        }
-        return !s.isEmpty();
-    }
-
-    private String decodeParameter(final Optional<String> parameterHexValue, final String parameterName) {
-        if (parameterHexValue.isEmpty()) {
+    private String decodeParameter(final String parameterHexValue, final String parameterName) {
+        if (parameterHexValue == null || parameterHexValue.isBlank()) {
             final String errorMessage = String.format("Missing %s parameter", parameterName);
             LOG.error(errorMessage);
             throw new BadArgumentsException(errorMessage);
         }
 
+        String decoded;
         try {
-            return new String(Hex.decodeHex(parameterHexValue.get().toCharArray()), StandardCharsets.UTF_8);
+            decoded = new String(Hex.decodeHex(parameterHexValue.toCharArray()), StandardCharsets.UTF_8);
         } catch (DecoderException e) {
             final String errorMessage = String.format("Invalid %s parameter value", parameterName);
             LOG.error(errorMessage, e);
             throw new BadArgumentsException(errorMessage);
         }
+
+        if (decoded.isBlank()) {
+            final String errorMessage = String.format("Invalid %s parameter value", parameterName);
+            LOG.error(errorMessage);
+            throw new BadArgumentsException(errorMessage);
+        }
+
+        return decoded;
     }
 }

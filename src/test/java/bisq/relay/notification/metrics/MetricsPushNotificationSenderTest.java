@@ -22,62 +22,21 @@ import bisq.relay.notification.PushNotificationResult;
 import bisq.relay.notification.PushNotificationSender;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import jakarta.annotation.Nonnull;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static bisq.relay.notification.metrics.PushMetrics.*;
+import static bisq.relaytest.utils.MeterRegistryUtil.providerOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MetricsPushNotificationSenderTest {
 
     private static final PushNotificationMessage MSG = new PushNotificationMessage("foo", true, false);
-
-    private static ObjectProvider<MeterRegistry> providerOf(@Nonnull final MeterRegistry registry) {
-        return new ObjectProvider<>() {
-            @Override
-            @Nonnull
-            public MeterRegistry getObject() {
-                return registry;
-            }
-
-            @Override
-            @Nonnull
-            public MeterRegistry getObject(@Nonnull final Object... args) {
-                return registry;
-            }
-
-            @Override
-            @Nonnull
-            public MeterRegistry getIfAvailable() {
-                return registry;
-            }
-
-            @Override
-            @Nonnull
-            public MeterRegistry getIfUnique() {
-                return registry;
-            }
-
-            @Override
-            @Nonnull
-            public Stream<MeterRegistry> orderedStream() {
-                return Stream.of(registry);
-            }
-
-            @Override
-            @Nonnull
-            public Stream<MeterRegistry> stream() {
-                return Stream.of(registry);
-            }
-        };
-    }
 
     private final MeterRegistry registry = new SimpleMeterRegistry();
 
