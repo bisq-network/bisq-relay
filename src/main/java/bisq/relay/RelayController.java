@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -63,7 +64,10 @@ public class RelayController {
         this.fcmPushNotificationController = fcmPushNotificationController;
     }
 
-    @GetMapping(value = "/relay")
+    @GetMapping(
+            value = "/relay",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public CompletableFuture<String> relayNotification(
             @RequestParam(name = "isAndroid", defaultValue = "false") final boolean isAndroid,
             @RequestParam(name = "token", required = false) final String deviceTokenHex,

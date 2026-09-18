@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,7 +52,10 @@ public class FcmPushNotificationController extends PushNotificationController {
         super(sender, objectMapper);
     }
 
-    @PostMapping(value = "/v1/fcm/device/{deviceToken}")
+    @PostMapping(
+            value = "/v1/fcm/device/{deviceToken}",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public CompletableFuture<ResponseEntity<String>> sendFcmNotification(
             @PathVariable("deviceToken") final String deviceToken,
             @Valid @RequestBody final PushNotificationMessage pushNotificationMessage,

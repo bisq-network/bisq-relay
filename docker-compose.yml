@@ -5,14 +5,45 @@ services:
       dockerfile: Dockerfile
     image: bisq-relay:local
     container_name: relay-app
+    expose:
+      - "8081"   # application traffic for nginx
+      - "9400"   # management/actuator traffic for Prometheus
     ports:
-      - "8080:8080"   # application traffic
-      - "9400:9400"   # management/actuator port for Prometheus
+      - "127.0.0.1:9400:9400"   # local host access to actuator
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:9400/actuator/health" ]
+      test: [ "CMD", "curl", "-fsS", "http://localhost:9400/actuator/health/readiness" ]
       interval: 10s
       timeout: 3s
       retries: 10
+      start_period: 30s
+    volumes:
+      - ${BISQ_RELAY_APNS_CERTIFICATE_FILE}:/run/secrets/apnsCertificate.p12:ro
+      - ${BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE}:/run/secrets/apnsCertificatePassword.txt:ro
+      - ${BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE}:/run/secrets/fcmServiceAccountKey.json:ro
+    environment:
+      SERVER_ADDRESS: "0.0.0.0"
+      MANAGEMENT_SERVER_ADDRESS: "0.0.0.0"
+      BISQ_RELAY_APNS_BUNDLE_ID: "${BISQ_RELAY_APNS_BUNDLE_ID:-}"
+      BISQ_RELAY_APNS_CERTIFICATE_FILE: "/run/secrets/apnsCertificate.p12"
+      BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE: "/run/secrets/apnsCertificatePassword.txt"
+      BISQ_RELAY_APNS_USE_SANDBOX: "${BISQ_RELAY_APNS_USE_SANDBOX:-true}"
+      BISQ_RELAY_FCM_ENABLED: "${BISQ_RELAY_FCM_ENABLED:-true}"
+      BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE: "/run/secrets/fcmServiceAccountKey.json"
+      BISQ_RELAY_FCM_FIREBASE_URL: "${BISQ_RELAY_FCM_FIREBASE_URL:-}"
+      BISQ_RELAY_FCM_DATA_ONLY: "${BISQ_RELAY_FCM_DATA_ONLY:-true}"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: relay-nginx
+    volumes:
+      - ./docker/nginx/bisq-relay.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/bisq-relay:/etc/nginx/bisq-relay:ro
+    ports:
+      - "127.0.0.1:8080:8080"   # local host entry point for application traffic
+    depends_on:
+      relay-app:
+        condition: service_healthy
     restart: unless-stopped
 
   prometheus:
@@ -23,13 +54,13 @@ services:
       - |
         sed "s|localhost|relay-app|g" /tmp/prometheus.yaml > /etc/prometheus/prometheus.yaml &&
         exec /bin/prometheus \
-          --config.file=/etc/prometheus/prometheus.yml \
+          --config.file=/etc/prometheus/prometheus.yaml \
           --storage.tsdb.retention.time=7d \
           --web.enable-lifecycle
     volumes:
       - ./monitoring/prometheus/prometheus.yaml:/tmp/prometheus.yaml:ro
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     restart: unless-stopped
 
   grafana:
@@ -49,7 +80,7 @@ services:
       - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - prometheus
     restart: unless-stopped

@@ -1,3 +1,5 @@
+.git/
+.gitignore
 .gradle/
 .idea/
 .vscode/

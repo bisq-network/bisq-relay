@@ -25,6 +25,8 @@ Before running the service, several files need to be obtained to be able to
 send push notifications to APNs and FCM, and ultimately to the corresponding mobile app.
 
 #### FCM
+
+A Firebase service account key is used to authenticate the relay with FCM.
 An appropriate `fcmServiceAccountKey.json` file needs to be copied to the root folder.
 Download it from the [Firebase console](https://console.firebase.google.com/)
 under `project settings` > `service accounts`.
@@ -41,6 +43,8 @@ in the background and control how/if it wants to show a notification to the user
 > see: https://firebase.google.com/docs/cloud-messaging/android/receive
 
 #### APNs
+
+An APNs certificate is used to authenticate the relay with APNs.
 An appropriate `apnsCertificate.p12` file needs to be copied to the root folder, along with the
 corresponding password stored within a `apnsCertificatePassword.txt` file.
 
@@ -65,7 +69,8 @@ The service is configured via environment variables. The following variables are
 | `BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE` | Path to certificate password file (required) | _(none)_ |
 | `BISQ_RELAY_APNS_USE_SANDBOX`               | Use APNs sandbox environment                 | `true`   |
 
-> **Note:** `BISQ_RELAY_APNS_USE_SANDBOX` defaults to `true` for safety. Production deployments must explicitly set this to `false`.
+> **Note:** `BISQ_RELAY_APNS_USE_SANDBOX` defaults to `true` for safety. Production deployments must explicitly
+> set this to `false`.
 
 #### FCM Configuration
 
@@ -97,7 +102,7 @@ For production deployment:
 ```sh
   export BISQ_RELAY_APNS_BUNDLE_ID="your.app.bundle.id"
   export BISQ_RELAY_APNS_USE_SANDBOX=false
-  export BISQ_RELAY_APNS_CERTIFICATE_FILE=/path/to/apnsCertificate.production.p12
+  export BISQ_RELAY_APNS_CERTIFICATE_FILE=/path/to/apnsCertificate.p12
   export BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE=/path/to/apnsCertificatePassword.txt
   ./build/install/bisq-relay/bin/bisq-relay
 ```
@@ -121,8 +126,86 @@ You can still use Java system properties if needed:
   ./build/install/bisq-relay/bin/bisq-relay
 ```
 
+#### Environment File
+
+Environment variables can be defined in a local `.env` file. For example:
+
+```dotenv
+BISQ_RELAY_APNS_BUNDLE_ID=your.app.bundle.id
+BISQ_RELAY_APNS_CERTIFICATE_FILE=/path/to/apnsCertificate.p12
+BISQ_RELAY_APNS_CERTIFICATE_PASSWORD_FILE=/path/to/apnsCertificatePassword.txt
+BISQ_RELAY_APNS_USE_SANDBOX=true
+
+BISQ_RELAY_FCM_ENABLED=true
+BISQ_RELAY_FCM_FIREBASE_CONFIGURATION_FILE=/path/to/fcmServiceAccountKey.json
+BISQ_RELAY_FCM_FIREBASE_URL=https://your-app.firebaseio.com
+BISQ_RELAY_FCM_DATA_ONLY=true
+```
+
+Then source the `.env` file before running the application:
+
+```sh
+set -a && source .env && set +a && ./build/install/bisq-relay/bin/bisq-relay
+```
+
+## Production Deployment
+
+For a production deployment, run nginx in front of `bisq-relay` as a local request gate.
+This keeps the Java application on `127.0.0.1:8081`, nginx on `127.0.0.1:8080`, and Tor can point to
+nginx instead of directly at the application:
+
+```text
+Tor onion service :80
+        ↓
+127.0.0.1:8080  nginx
+        ↓
+127.0.0.1:8081  bisq-relay
+```
+
+Configure the Tor hidden service configuration (`/etc/tor/torrc`) so the onion service forwards to nginx:
+
+```text
+HiddenServicePort 80 127.0.0.1:8080
+```
+
+Install the shared nginx include files from [`nginx/bisq-relay/`](nginx/bisq-relay/) under
+`/etc/nginx/bisq-relay/`, then install [`nginx/conf.d/bisq-relay.conf`](nginx/conf.d/bisq-relay.conf)
+as `/etc/nginx/conf.d/bisq-relay.conf`.
+
+> The nginx configuration restricts requests to the supported endpoints, rejects unexpected methods and content types,
+> limits request body size, blocks obvious traversal probes, and rate-limits traffic before it reaches the application.
+
+After applying the nginx configuration, reload nginx and Tor:
+
+```sh
+sudo nginx -t
+sudo systemctl reload nginx
+sudo systemctl reload tor
+```
+
+Verify that nginx and bisq-relay are listening locally:
+
+```sh
+ss -ltnp | grep -E ':8080|:8081'
+```
+
+The expected deployment is:
+
+```text
+127.0.0.1:8080  nginx
+127.0.0.1:8081  bisq-relay
+```
+
 ## Deploying a Local Test Environment
 
+### Requirements
+
+Environment variables should be defined in a local `.env` file in the same directory as
+`docker-compose.yml`. See the [Environment File](#environment-file) section for example content.
+
+### Deployment
+
+The docker-compose file uses the `bisq-relay` image built from the source code.
 Use the following docker command to deploy a complete local test environment:
 
 ```shell
@@ -131,19 +214,119 @@ docker compose up --build
 
 Once deployed, the following will be available:
 
-- Application REST API: http://127.0.0.1:8080 (e.g. `POST http://127.0.0.1:8080/v1/apns/device/{deviceToken}`)
-- Application management interface: http://127.0.0.1:9400 (e.g. http://127.0.0.1:9400/actuator/info)
+- Application REST API through nginx: http://127.0.0.1:8080 (e.g.,
+  `POST http://127.0.0.1:8080/v1/apns/device/{deviceToken}`)
+- Application management interface: http://127.0.0.1:9400 (e.g., http://127.0.0.1:9400/actuator/info)
 - Grafana: http://127.0.0.1:3000
 - Prometheus: http://127.0.0.1:9090
 
 ## API Reference
 
+The bisq-relay exposes provider-specific endpoints for sending encrypted push notification payloads to APNs and FCM.
+
+### Endpoints
+
+| Method | Endpoint                        | Provider | Description                               |
+|--------|---------------------------------|----------|-------------------------------------------|
+| `POST` | `/v1/apns/device/{deviceToken}` | APNs     | Sends a notification to an iOS device     |
+| `POST` | `/v1/fcm/device/{deviceToken}`  | FCM      | Sends a notification to an Android device |
+
+Both endpoints use the same request body format.
+
+### Path Parameters
+
+| Parameter     | Type   | Required | Description                                                                                                                                         |
+|---------------|--------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `deviceToken` | string | yes      | Provider-specific device token identifying the target device. For APNs, this is the APNs device token. For FCM, this is the FCM registration token. |
+
+### Headers
+
+| Header         | Required | Value              | Description                                        |
+|----------------|----------|--------------------|----------------------------------------------------|
+| `Content-Type` | yes      | `application/json` | Request body must be JSON.                         |
+| `Accept`       | no       | `application/json` | Indicates that the client accepts a JSON response. |
+
 ### Request Body
 
-The `POST /v1/apns/device/{deviceToken}` and `POST /v1/fcm/device/{deviceToken}` endpoints accept a JSON body with the following fields:
+```json
+{
+  "encrypted": "...",
+  "isUrgent": false,
+  "isMutableContent": false
+}
+```
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `encrypted` | string | yes | — | Encrypted notification payload |
-| `isUrgent` | boolean | no | `false` | When `true`, sends as high-priority alert; when `false`, sends as background notification |
-| `isMutableContent` | boolean | no | `false` | APNs only. When `true`, sets the `mutable-content` flag in the APNs payload, allowing the iOS app's Notification Service Extension (NSE) to modify the notification content before display (e.g. for client-side decryption) |
+| Field              | Type    | Required | Default | Description                                                                                                                                                                                                                                                   |
+|--------------------|---------|----------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `encrypted`        | string  | yes      | —       | Encrypted notification payload to relay to the target device. This value should already be encrypted by the sender; the bisq-relay does not decrypt, validate, or interpret the encrypted message contents.                                                   |
+| `isUrgent`         | boolean | no       | `false` | When `true`, sends the notification as a high-priority alert. When `false`, sends it as a background notification where supported by the provider.                                                                                                            |
+| `isMutableContent` | boolean | no       | `false` | APNs only. When `true`, sets the `mutable-content` flag in the APNs payload, allowing the iOS app's Notification Service Extension to modify the notification before display, for example for client-side decryption. This field is ignored for FCM requests. |
+
+### Example APNs Request
+
+```bash
+curl -X POST "http://127.0.0.1:8080/v1/apns/device/<device-token>" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "encrypted": "<encrypted-payload>",
+    "isUrgent": true,
+    "isMutableContent": true
+  }'
+```
+
+### Example FCM Request
+
+```bash
+curl -X POST "http://127.0.0.1:8080/v1/fcm/device/<device-token>" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "encrypted": "<encrypted-payload>",
+    "isUrgent": false
+  }'
+```
+
+### Successful Response
+
+If the provider accepts the notification, the bisq-relay returns `200 OK` with a JSON response body.
+
+```json
+{
+  "wasAccepted": true,
+  "isUnregistered": false
+}
+```
+
+### Provider Rejection Response
+
+If the request is valid but the push provider rejects the notification, the relay returns `400 Bad Request` with
+provider result details when available.
+
+```json
+{
+  "wasAccepted": false,
+  "errorCode": "BadDeviceToken",
+  "errorMessage": "The device token is invalid.",
+  "isUnregistered": true
+}
+```
+
+| Field            | Type    | Description                                                                                                                                                                         |
+|------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `wasAccepted`    | boolean | Indicates whether the upstream push provider accepted the notification.                                                                                                             |
+| `errorCode`      | string  | Provider error code, when available. Omitted when there is no provider error code.                                                                                                  |
+| `errorMessage`   | string  | Provider error message, when available. Omitted when there is no provider error message.                                                                                            |
+| `isUnregistered` | boolean | Indicates whether the target device token is no longer registered with the push provider. Clients should treat this as a signal that the token may need to be removed or refreshed. |
+
+### Request Error Responses
+
+Request-level errors return an HTTP status code with an empty response body.
+
+| Status                       | Cause                                                                                               |
+|------------------------------|-----------------------------------------------------------------------------------------------------|
+| `400 Bad Request`            | Missing or invalid request body, malformed JSON, validation failure, or invalid request parameters. |
+| `404 Not Found`              | Endpoint does not exist or the device token path parameter is missing.                              |
+| `405 Method Not Allowed`     | Endpoint exists but does not support the requested HTTP method.                                     |
+| `415 Unsupported Media Type` | Request body does not use `Content-Type: application/json`.                                         |
+| `500 Internal Server Error`  | Unexpected relay error while processing the notification.                                           |
